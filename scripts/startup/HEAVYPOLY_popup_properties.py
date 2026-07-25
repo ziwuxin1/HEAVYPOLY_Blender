@@ -51,7 +51,8 @@ class HP_MT_popup_properties(bpy.types.Operator):
             elif camdat.type == 'PANO':
                 engine = context.engine
                 if engine == 'CYCLES':
-                    ccam = camdat.cycles
+                    # Camera.cycles was removed in 4.3; panoramic settings live on the camera data itself.
+                    ccam = camdat
                     col.prop(ccam, "panorama_type")
                     if ccam.panorama_type == 'FISHEYE_EQUIDISTANT':
                         col.prop(ccam, "fisheye_fov")
@@ -65,7 +66,7 @@ class HP_MT_popup_properties(bpy.types.Operator):
                         sub = col.column(align=True)
                         sub.prop(ccam, "longitude_min", text="Longiture Min")
                         sub.prop(ccam, "longitude_max", text="Max")
-                elif engine in {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_OPENGL'}:
+                elif engine in {'BLENDER_EEVEE', 'BLENDER_WORKBENCH'}:
                     col.prop(camdat, "lens")
             row = col.row()
 
@@ -143,16 +144,7 @@ class HP_MT_popup_properties(bpy.types.Operator):
                 col.prop(world, "color")
             scene = bpy.context.scene
             props = scene.eevee
-            box = col.box().column()
-
-            box.active = props.use_bloom
-            box.label(text = 'Bloom')
-            box.prop(props, "bloom_threshold")
-            box.prop(props, "bloom_knee")
-            box.prop(props, "bloom_radius")
-            box.prop(props, "bloom_color")
-            box.prop(props, "bloom_intensity")
-            box.prop(props, "bloom_clamp")
+            # Bloom was removed from EEVEE in Blender 4.2 (use the compositor Glare node instead).
             scene = context.scene
             rd = scene.render
             row = col2.row(align = True)
@@ -195,7 +187,7 @@ class HP_MT_popup_properties(bpy.types.Operator):
                 col.prop(actdat, "show_cone")
             col.label(text='Shadows')
             col.prop(actdat, "shadow_buffer_clip_start", text="Clip Start")
-            col.prop(actdat, "shadow_buffer_bias", text="Bias")
+            col.prop(actdat, "shadow_filter_radius", text="Filter")
             col.prop(actdat, "cutoff_distance", text="Distance")
 
             # col.prop(actdat, "use_contact_shadow", text="Use Contact Shadows")
@@ -210,10 +202,10 @@ class HP_MT_popup_properties(bpy.types.Operator):
             row=col2.row()
             row.scale_x=.2
             # row.prop(props, "shadow_method", text='')
-            row.prop(props, "shadow_cube_size", text="")
-            row.prop(props, "shadow_cascade_size", text="")
-            col2.prop(props, "use_shadow_high_bitdepth")
-            col2.prop(props, "use_soft_shadows")
+            row.prop(props, "shadow_pool_size", text="")
+            row.prop(props, "shadow_ray_count", text="")
+            col2.prop(props, "use_shadows")
+            col2.prop(props, "use_shadow_jitter_viewport")
             col2.prop(props, "taa_samples")
             col2.prop(props, "taa_render_samples")
 
@@ -221,15 +213,16 @@ class HP_MT_popup_properties(bpy.types.Operator):
             col.label(text='LIGHT PROBE PROPERTIES')
             col.prop(bpy.context.active_object, 'name', text = '')
             probe = actdat
-            if probe.type == 'GRID':
+            # Probe types were renamed for EEVEE Next in 4.2: GRID -> VOLUME, PLANAR -> PLANE,
+            # grid_resolution_* -> resolution_*, and Sphere probes no longer have "intensity".
+            if probe.type == 'VOLUME':
                 col.prop(probe, "influence_distance", text="Distance")
-                col.prop(probe, "falloff")
                 col.prop(probe, "intensity")
                 col.separator()
-                col.prop(probe, "grid_resolution_x", text="Grid X")
-                col.prop(probe, "grid_resolution_y", text="Grid Y")
-                col.prop(probe, "grid_resolution_z", text="Grid Z")
-            elif probe.type == 'PLANAR':
+                col.prop(probe, "resolution_x", text="Grid X")
+                col.prop(probe, "resolution_y", text="Grid Y")
+                col.prop(probe, "resolution_z", text="Grid Z")
+            elif probe.type == 'PLANE':
                 col.prop(probe, "influence_distance", text="Distance")
             else:
                 col.prop(probe, "influence_type")
@@ -238,9 +231,8 @@ class HP_MT_popup_properties(bpy.types.Operator):
                 else:
                     col.prop(probe, "influence_distance", text="Size")
                 col.prop(probe, "falloff")
-                col.prop(probe, "intensity")
-            col2.operator('scene.light_cache_bake')
-            col2.operator('scene.light_cache_free')
+            col2.operator('object.lightprobe_cache_bake')
+            col2.operator('object.lightprobe_cache_free')
 
 
         elif ob.type == 'MESH':
@@ -248,7 +240,7 @@ class HP_MT_popup_properties(bpy.types.Operator):
                 toolsettings = bpy.context.tool_settings
                 sculpt = toolsettings.sculpt
 
-                brush = toolsettings.unified_paint_settings
+                brush = toolsettings.sculpt.unified_paint_settings
                 col.label(text='SCULPT PROPERTIES')
                 col.prop(bpy.context.active_object, 'name', text = '')
                 col.separator()
@@ -260,14 +252,31 @@ class HP_MT_popup_properties(bpy.types.Operator):
                 sub2 = row.column()
                 sub2.scale_x=.1
 
-                sub.operator('wm.tool_set_by_id',text = 'Draw').name='builtin_brush.Draw'
-                sub.operator('wm.tool_set_by_id',text = 'Inflate').name='builtin_brush.Inflate'
-                sub.operator('wm.tool_set_by_id',text = 'Flatten').name='builtin_brush.Flatten'
-                sub.operator('wm.tool_set_by_id',text = 'Crease').name='builtin_brush.Crease'
-                sub2.operator('wm.tool_set_by_id',text = 'Clay').name='builtin_brush.Clay'
-                sub2.operator('wm.tool_set_by_id',text = 'Fill').name='builtin_brush.Fill'
-                sub2.operator('wm.tool_set_by_id',text = 'Grab').name='builtin_brush.Grab'
-                sub2.operator('wm.tool_set_by_id',text = 'Snake Hook').name='builtin_brush.Snake Hook'
+                # Sculpt brushes became assets in 4.3; the per-brush builtin_brush.* tools were removed.
+                props = sub.operator('brush.asset_activate', text = 'Draw')
+                props.asset_library_type = 'ESSENTIALS'
+                props.relative_asset_identifier = 'brushes/essentials_brushes-mesh_sculpt.blend/Brush/Draw'
+                props = sub.operator('brush.asset_activate', text = 'Inflate')
+                props.asset_library_type = 'ESSENTIALS'
+                props.relative_asset_identifier = 'brushes/essentials_brushes-mesh_sculpt.blend/Brush/Inflate/Deflate'
+                props = sub.operator('brush.asset_activate', text = 'Flatten')
+                props.asset_library_type = 'ESSENTIALS'
+                props.relative_asset_identifier = 'brushes/essentials_brushes-mesh_sculpt.blend/Brush/Flatten/Contrast'
+                props = sub.operator('brush.asset_activate', text = 'Crease')
+                props.asset_library_type = 'ESSENTIALS'
+                props.relative_asset_identifier = 'brushes/essentials_brushes-mesh_sculpt.blend/Brush/Crease Polish'
+                props = sub2.operator('brush.asset_activate', text = 'Clay')
+                props.asset_library_type = 'ESSENTIALS'
+                props.relative_asset_identifier = 'brushes/essentials_brushes-mesh_sculpt.blend/Brush/Clay'
+                props = sub2.operator('brush.asset_activate', text = 'Fill')
+                props.asset_library_type = 'ESSENTIALS'
+                props.relative_asset_identifier = 'brushes/essentials_brushes-mesh_sculpt.blend/Brush/Fill/Deepen'
+                props = sub2.operator('brush.asset_activate', text = 'Grab')
+                props.asset_library_type = 'ESSENTIALS'
+                props.relative_asset_identifier = 'brushes/essentials_brushes-mesh_sculpt.blend/Brush/Grab'
+                props = sub2.operator('brush.asset_activate', text = 'Snake Hook')
+                props.asset_library_type = 'ESSENTIALS'
+                props.relative_asset_identifier = 'brushes/essentials_brushes-mesh_sculpt.blend/Brush/Snake Hook'
 #               col.operator('sculpt.dynamic_topology_toggle', text = 'Dynotopo')
                 col.prop(sculpt.brush, "use_frontface")
                 if sculpt.detail_type_method in {'CONSTANT','MANUAL'}:
@@ -318,33 +327,47 @@ class HP_MT_popup_properties(bpy.types.Operator):
                 subcol.prop(ob, "dimensions")
                 col.use_property_decorate = False
                 
-                col.prop(bpy.context.active_object.data, "auto_smooth_angle")
+                # Mesh.auto_smooth_angle was removed in 4.1 (replaced by the "Smooth by Angle" modifier).
+                if hasattr(bpy.context.active_object.data, "auto_smooth_angle"):
+                    col.prop(bpy.context.active_object.data, "auto_smooth_angle")
             ##SECOND COLUMN##############################################################
 
             col2.label(text='MODIFIERS')
             col2.operator_menu_enum("object.modifier_add", "type")
+            # UILayout.template_modifier() no longer exists, so the header is drawn manually.
             for md in ob.modifiers:
-                        box = col2.template_modifier(md)
-                        if box:
-                            getattr(self, md.type)(box, ob, md)
+                        box = col2.box()
+                        header = box.row(align=True)
+                        header.prop(md, "show_expanded", text="", emboss=False)
+                        header.label(text="", icon='MODIFIER')
+                        header.prop(md, "name", text="")
+                        header.prop(md, "show_in_editmode", text="", icon='EDITMODE_HLT')
+                        header.prop(md, "show_viewport", text="", icon='RESTRICT_VIEW_OFF')
+                        header.prop(md, "show_render", text="", icon='RESTRICT_RENDER_OFF')
+                        header.operator("object.modifier_remove", text="", icon='X').modifier = md.name
+                        draw_func = getattr(self, md.type, None)
+                        if md.show_expanded and draw_func is not None:
+                            draw_func(box, ob, md)
 
-        elif ob.type == 'GPENCIL':
+        elif ob.type == 'GREASEPENCIL':
             col.label(text='GREASE PENCIL PROPERTIES')
             col.prop(bpy.context.active_object, 'name', text = '')
 
             toolsettings = bpy.context.tool_settings
             sculpt = toolsettings.sculpt
 
-            brush = toolsettings.unified_paint_settings
+            brush = toolsettings.gpencil_paint.unified_paint_settings
             col.separator()
-            col.prop(toolsettings.gpencil_paint.brush, "size")
+            # gpencil_paint.brush is None until Draw mode has been entered at least once.
+            if toolsettings.gpencil_paint.brush:
+                col.prop(toolsettings.gpencil_paint.brush, "size")
 
             row = col.row()
             sub = row.column()
             sub.scale_x=.1
             sub2 = row.column()
             sub2.scale_x=.1
-            sub.operator('wm.tool_set_by_id',text = 'Draw').name='builtin_brush.Draw'
+            sub.operator('wm.tool_set_by_id',text = 'Draw').name='builtin.brush'
             sub.operator('wm.tool_set_by_id',text = 'Erase').name='builtin_brush.Erase'
             sub.operator('wm.tool_set_by_id',text = 'Fill').name='builtin_brush.Fill'
             sub2.operator('wm.tool_set_by_id',text = 'Box').name='builtin.box'
@@ -357,11 +380,18 @@ class HP_MT_popup_properties(bpy.types.Operator):
             # col.operator('view3d.gp_canvas', text = 'Front', icon='NONE').type = 'Y'
             # col.operator('view3d.gp_canvas', text = 'Top', icon='NONE').type = 'Z'
 
-            col2.operator_menu_enum("object.gpencil_modifier_add", "type")
-            for md in ob.grease_pencil_modifiers:
-                box = col2.template_greasepencil_modifier(md)
-                if box:
-                    getattr(self, md.type)(box, ob, md)
+            # GPv3 (4.3) removed object.gpencil_modifier_add, Object.grease_pencil_modifiers and
+            # UILayout.template_greasepencil_modifier; grease pencil modifiers are ordinary modifiers now.
+            col2.operator_menu_enum("object.modifier_add", "type")
+            for md in ob.modifiers:
+                box = col2.box()
+                header = box.row(align=True)
+                header.prop(md, "show_expanded", text="", emboss=False)
+                header.prop(md, "name", text="")
+                header.operator("object.modifier_remove", text="", icon='X').modifier = md.name
+                draw_func = getattr(self, md.type, None)
+                if md.show_expanded and draw_func is not None:
+                    draw_func(box, ob, md)
 
         elif ob.type == 'META':
             col2.label(text='META PROPERTIES')
@@ -481,9 +511,9 @@ class HP_MT_popup_properties(bpy.types.Operator):
             col2.prop(curve, "render_resolution_v", text="Render V")
             col2.prop(curve, "twist_mode")
             col2.prop(curve, "twist_smooth", text="Smooth")
-            col2.prop(curve, "use_fast_edit", text="Fast Editing")
+            # Curve.use_fast_edit was removed; "Fast Editing" exists only on text objects (TextCurve).
 
-            col2.prop(curve, "use_fill_deform")
+            # Curve.use_fill_deform was removed from the Curve data-block.
             col2.prop(curve, "use_radius")
             col2.prop(curve, "use_stretch")
             col2.prop(curve, "use_deform_bounds")
@@ -1117,7 +1147,7 @@ class HP_MT_popup_properties(bpy.types.Operator):
         col.prop(md, "material")
 
         col = split.column()
-        col.prop(md, "use_only_vertices")
+        col.prop(md, "affect", text="Affect")
         col.prop(md, "use_clamp_overlap")
         col.prop(md, "loop_slide")
         col.prop(md, "mark_seam")
@@ -1135,9 +1165,8 @@ class HP_MT_popup_properties(bpy.types.Operator):
         layout.row().prop(md, "offset_type", expand=True)
 
         layout.label(text="Normal Mode")
-        layout.row().prop(md, "hnmode", expand=True)
-        layout.prop(md, "hn_strength")
-        layout.prop(md, "set_wn_strength")
+        layout.prop(md, "harden_normals")
+        layout.prop(md, "face_strength_mode", text="Face Strength")
 
     def BOOLEAN(self, layout, ob, md):
         split = layout.split()
@@ -1173,8 +1202,7 @@ class HP_MT_popup_properties(bpy.types.Operator):
         layout.prop(md, "cache_format")
         layout.prop(md, "filepath")
 
-        if md.cache_format == 'ABC':
-            layout.prop(md, "sub_object")
+        # MeshCacheModifier.sub_object was removed; use the Mesh Sequence Cache modifier for Alembic sub-objects.
 
         layout.label(text="Evaluation:")
         layout.prop(md, "factor", slider=True)
@@ -1315,7 +1343,7 @@ class HP_MT_popup_properties(bpy.types.Operator):
             layout_info = layout
 
         layout_info.label(
-            text=iface_("Face Count: {:,}".format(md.face_count)),
+            text="Face Count: {:,}".format(md.face_count),
             translate=False,
         )
 
@@ -1603,7 +1631,7 @@ class HP_MT_popup_properties(bpy.types.Operator):
 
 
     def MULTIRES(self, layout, ob, md):
-        layout.row().prop(md, "subdivision_type", expand=True)
+        # MultiresModifier.subdivision_type was removed (Catmull-Clark only).
 
         split = layout.split()
         col = split.column()
@@ -1972,17 +2000,18 @@ class HP_MT_popup_properties(bpy.types.Operator):
 
         scene = context.scene
         engine = context.engine
+        # The Cycles Experimental feature set was removed, and adaptive subdivision moved
+        # off Object.cycles onto the Subsurf modifier itself.
         show_adaptive_options = (
-            engine == 'CYCLES' and md == ob.modifiers[-1] and
-            scene.cycles.feature_set == 'EXPERIMENTAL'
+            engine == 'CYCLES' and md == ob.modifiers[-1]
         )
         if show_adaptive_options:
             col.label(text="View:")
             col.prop(md, "levels", text="Levels")
             col.label(text="Render:")
-            col.prop(ob.cycles, "use_adaptive_subdivision", text="Adaptive")
-            if ob.cycles.use_adaptive_subdivision:
-                col.prop(ob.cycles, "dicing_rate")
+            col.prop(md, "use_adaptive_subdivision", text="Adaptive")
+            if md.use_adaptive_subdivision:
+                col.prop(md, "adaptive_pixel_size")
             else:
                 col.prop(md, "render_levels", text="Levels")
         else:
@@ -1996,20 +2025,20 @@ class HP_MT_popup_properties(bpy.types.Operator):
         col.label(text="Options:")
 
         sub = col.column()
-        sub.active = (not show_adaptive_options) or (not ob.cycles.use_adaptive_subdivision)
+        sub.active = (not show_adaptive_options) or (not md.use_adaptive_subdivision)
         sub.prop(md, "uv_smooth", text="")
 
         col.prop(md, "show_only_control_edges")
 
-        if show_adaptive_options and ob.cycles.use_adaptive_subdivision:
+        if show_adaptive_options and md.use_adaptive_subdivision:
             col = layout.column(align=True)
             col.scale_y = 0.6
             col.separator()
             col.label(text="Final Dicing Rate:")
             col.separator()
 
-            render = max(scene.cycles.dicing_rate * ob.cycles.dicing_rate, 0.1)
-            preview = max(scene.cycles.preview_dicing_rate * ob.cycles.dicing_rate, 0.1)
+            render = max(scene.cycles.dicing_rate * md.adaptive_pixel_size, 0.1)
+            preview = max(scene.cycles.preview_dicing_rate * md.adaptive_pixel_size, 0.1)
             col.label(text=f"Render {render:.2f} px, Preview {preview:.2f} px")
 
     def SURFACE(self, layout, ob, md):
@@ -2466,9 +2495,9 @@ class HP_MT_popup_properties(bpy.types.Operator):
             row = sub.row(align=True)
             row.label(text="", icon='NONE')
             row = sub.row(align=True)
-            row.prop(md, "layers_vcol_select_src", text="")
+            row.prop(md, "layers_vcol_loop_select_src", text="")
             row.label(icon='RIGHTARROW')
-            row.prop(md, "layers_vcol_select_dst", text="")
+            row.prop(md, "layers_vcol_loop_select_dst", text="")
             row = sub.row(align=True)
             row.prop(md, "layers_uv_select_src", text="")
             row.label(icon='RIGHTARROW')
@@ -2594,7 +2623,7 @@ class HP_MT_popup_properties(bpy.types.Operator):
         row.active = bool(md.vertex_group)
         row.prop(md, "invert_vertex_group", text="", icon='ARROW_LEFTRIGHT')
         col.prop(md, "thresh", text="Threshold")
-        col.prop(md, "face_influence")
+        col.prop(md, "use_face_influence")
 
 
 

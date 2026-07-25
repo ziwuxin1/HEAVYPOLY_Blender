@@ -319,18 +319,16 @@ class HP_OT_SeparateAndSelect(bpy.types.Operator):
         bases = bpy.context.selected_objects
         if bpy.context.object.type == 'MESH':
             bpy.ops.mesh.separate(type='SELECTED')
-        elif bpy.context.object.type == 'GPENCIL':
-            bpy.ops.gpencil.stroke_separate(mode='POINT')
+        # Removed dead 'GPENCIL' branch: the object type and bpy.ops.gpencil.stroke_separate were removed by GPv3 (4.3+)
         elif bpy.context.object.type == 'GREASEPENCIL':
-            bpy.ops.grease_pencil.stroke_separate(mode='POINT')
+            bpy.ops.grease_pencil.separate(mode='SELECTED')
 
             # bpy.ops.gpencil.stroke_split()
         elif bpy.context.object.type == 'CURVE':
             bpy.ops.curve.separate()
-        if bpy.context.object.type == 'GPENCIL':
-            bpy.ops.gpencil.editmode_toggle()
-        elif bpy.context.object.type == 'GREASEPENCIL':
-            bpy.ops.object.mode_set('EDIT', toggle=True)
+        # Removed dead 'GPENCIL' branch: bpy.ops.gpencil.editmode_toggle was removed by GPv3 (4.3+)
+        if bpy.context.object.type == 'GREASEPENCIL':
+            bpy.ops.object.mode_set(mode='EDIT', toggle=True)
         else:
             bpy.ops.object.editmode_toggle()
             
@@ -338,10 +336,10 @@ class HP_OT_SeparateAndSelect(bpy.types.Operator):
             b.select_set(state=False)
         selected = bpy.context.selected_objects
         bpy.context.view_layer.objects.active = selected[-1]
-        if bpy.context.object.type == 'GPENCIL':
-            bpy.ops.gpencil.editmode_toggle()
-        elif bpy.context.object.type == 'GREASEPENCIL':
-            bpy.ops.grease_pencil.editmode_toggle()
+        # Removed dead 'GPENCIL' branch: bpy.ops.gpencil.editmode_toggle was removed by GPv3 (4.3+)
+        # GPv3 has no grease_pencil.editmode_toggle either; edit mode is toggled generically
+        if bpy.context.object.type == 'GREASEPENCIL':
+            bpy.ops.object.editmode_toggle()
         else:
             bpy.ops.object.editmode_toggle()
         if bpy.context.object.type == 'MESH':
@@ -362,9 +360,9 @@ class HP_OT_SmartShadeSmooth(bpy.types.Operator):
                 if ob.mode == 'EDIT':
                     isedit = True
                     bpy.ops.object.editmode_toggle()
-                bpy.ops.object.shade_smooth()
-                ob.data.use_auto_smooth = True
-                ob.data.auto_smooth_angle = 0.436332
+                # Mesh.use_auto_smooth / auto_smooth_angle were removed in 4.1; Auto Smooth is now the
+                # "Smooth by Angle" modifier applied by this single operator (also does Shade Smooth).
+                bpy.ops.object.shade_auto_smooth(use_auto_smooth=True, angle=0.436332)
                 if isedit:
                     bpy.ops.object.editmode_toggle()
         return {'FINISHED'}
@@ -375,10 +373,10 @@ class HP_OT_toggle_render_material(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}  # enable undo for the operator.
 
     def invoke(self, context, event):
-        if bpy.context.space_data.viewport_shade != 'MATERIAL':
-            bpy.context.space_data.viewport_shade = 'MATERIAL'
-        elif bpy.context.space_data.viewport_shade == 'MATERIAL':
-            bpy.context.space_data.viewport_shade = 'RENDERED'
+        if bpy.context.space_data.shading.type != 'MATERIAL':
+            bpy.context.space_data.shading.type = 'MATERIAL'
+        elif bpy.context.space_data.shading.type == 'MATERIAL':
+            bpy.context.space_data.shading.type = 'RENDERED'
         return {'FINISHED'}
 
 
@@ -416,14 +414,11 @@ class HP_OT_Smart_Delete(bpy.types.Operator):
                 if context.active_object.mode != 'OBJECT':
                     bpy.ops.curve.delete(type='VERT')
 
-            # Grease Pencil handling (GPENCIL for 4.2, GREASEPENCIL for 4.3+)
-            elif objType in {'GPENCIL', 'GREASEPENCIL'}:
+            # Grease Pencil handling (GPv3, 4.3+). Removed the pre-4.3 'GPENCIL' fallback:
+            # that object type and bpy.ops.gpencil.delete no longer exist.
+            elif objType == 'GREASEPENCIL':
                 if context.active_object.mode != 'OBJECT':
-                    if bpy.app.version < (4, 3, 0):
-                        bpy.ops.gpencil.delete(type='POINTS')
-                    else:
-                        # Blender 4.3+ Grease Pencil API handling
-                        bpy.ops.grease_pencil.delete()
+                    bpy.ops.grease_pencil.delete()
 
             # Meta object handling
             elif objType == 'META':

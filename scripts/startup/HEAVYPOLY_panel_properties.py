@@ -73,7 +73,7 @@ class HP_PT_object_properties(bpy.types.Panel):
             elif camdat.type == 'PANO':
                 engine = context.engine
                 if engine == 'CYCLES':
-                    ccam = camdat.cycles
+                    ccam = camdat  # panoramic settings moved from cam.cycles onto Camera itself in 4.3+
                     col.prop(ccam, "panorama_type")
                     if ccam.panorama_type == 'FISHEYE_EQUIDISTANT':
                         col.prop(ccam, "fisheye_fov")
@@ -159,7 +159,7 @@ class HP_PT_object_properties(bpy.types.Panel):
             col2.prop(actdat, "shadow_buffer_clip_start", text="Clip Start")
             # col2.prop(actdat, "shadow_buffer_clip_end", text="End")
             # col2.prop(actdat, "shadow_buffer_soft", text="Fake Softness")
-            col2.prop(actdat, "shadow_buffer_bias", text="Contact Clip")
+            col2.prop(actdat, "shadow_filter_radius", text="Filter Radius")
             # col2.prop(actdat, "shadow_buffer_exp", text="Darkness")
             # col2.prop(actdat, "shadow_buffer_bleed_bias", text="Bleed Bias")
             col2.prop(actdat, "cutoff_distance", text="Distance")
@@ -170,10 +170,10 @@ class HP_PT_object_properties(bpy.types.Panel):
             row=col2.row()
             row.scale_x=.2
             #row.prop(props, "shadow_method", text='')
-            row.prop(props, "shadow_cube_size", text="")
-            row.prop(props, "shadow_cascade_size", text="")
-            col.prop(props, "use_shadow_high_bitdepth")
-            col.prop(props, "use_soft_shadows")
+            row.prop(props, "shadow_pool_size", text="")
+            row.prop(props, "shadow_resolution_scale", text="")
+            col.prop(props, "use_shadows")
+            col.prop(props, "use_shadow_jitter_viewport")
             col.prop(props, "taa_samples")
             col.prop(props, "taa_render_samples")
 
@@ -182,15 +182,15 @@ class HP_PT_object_properties(bpy.types.Panel):
             col.label(text='LIGHT PROBE PROPERTIES')
             col.prop(bpy.context.active_object, 'name', text = '')
             probe = actdat
-            if probe.type == 'GRID':
+            if probe.type == 'VOLUME':
                 col.prop(probe, "influence_distance", text="Distance")
-                col.prop(probe, "falloff")
+                # 'falloff' no longer exists on LightProbeVolume (EEVEE Next light probes, 4.2+)
                 col.prop(probe, "intensity")
                 col.separator()
-                col.prop(probe, "grid_resolution_x", text="Grid X")
-                col.prop(probe, "grid_resolution_y", text="Grid Y")
-                col.prop(probe, "grid_resolution_z", text="Grid Z")
-            elif probe.type == 'PLANAR':
+                col.prop(probe, "resolution_x", text="Grid X")
+                col.prop(probe, "resolution_y", text="Grid Y")
+                col.prop(probe, "resolution_z", text="Grid Z")
+            elif probe.type == 'PLANE':
                 col.prop(probe, "influence_distance", text="Distance")
             else:
                 col.prop(probe, "influence_type")
@@ -199,9 +199,9 @@ class HP_PT_object_properties(bpy.types.Panel):
                 else:
                     col.prop(probe, "influence_distance", text="Size")
                 col.prop(probe, "falloff")
-                col.prop(probe, "intensity")
-            col2.operator('scene.light_cache_bake')
-            col2.operator('scene.light_cache_free')
+                # 'intensity' no longer exists on LightProbeSphere (EEVEE Next light probes, 4.2+)
+            col2.operator('object.lightprobe_cache_bake')
+            col2.operator('object.lightprobe_cache_free')
             
 
         elif ob.type == 'MESH':
@@ -209,8 +209,8 @@ class HP_PT_object_properties(bpy.types.Panel):
                 toolsettings = bpy.context.tool_settings
                 sculpt = toolsettings.sculpt
                 
-                brush = toolsettings.unified_paint_settings
-                col.label(text='SCULPT PROPERTIES')         
+                brush = sculpt.unified_paint_settings
+                col.label(text='SCULPT PROPERTIES')       
                 col.prop(bpy.context.active_object, 'name', text = '')
                 col.separator()
                 col.prop(brush, "size")
@@ -219,21 +219,38 @@ class HP_PT_object_properties(bpy.types.Panel):
                 sub = row.column()
                 sub.scale_x=.1
 
-                sub.operator('paint.brush_select',text = 'Snake Hook').sculpt_tool='SNAKE_HOOK'
-                sub.operator('paint.brush_select',text = 'Inflate').sculpt_tool='INFLATE'
-                sub.operator('paint.brush_select',text = 'Crease').sculpt_tool='CREASE'
-                sub.operator('paint.brush_select',text = 'Clay').sculpt_tool='CLAY'
+                # paint.brush_select was removed in 4.3+ (brushes became assets); use brush.asset_activate
+                op = sub.operator('brush.asset_activate',text = 'Snake Hook')
+                op.asset_library_type = 'ESSENTIALS'
+                op.relative_asset_identifier = 'brushes/essentials_brushes-mesh_sculpt.blend/Brush/Snake Hook'
+                op = sub.operator('brush.asset_activate',text = 'Inflate')
+                op.asset_library_type = 'ESSENTIALS'
+                op.relative_asset_identifier = 'brushes/essentials_brushes-mesh_sculpt.blend/Brush/Inflate/Deflate'
+                op = sub.operator('brush.asset_activate',text = 'Crease')
+                op.asset_library_type = 'ESSENTIALS'
+                op.relative_asset_identifier = 'brushes/essentials_brushes-mesh_sculpt.blend/Brush/Crease Polish'
+                op = sub.operator('brush.asset_activate',text = 'Clay')
+                op.asset_library_type = 'ESSENTIALS'
+                op.relative_asset_identifier = 'brushes/essentials_brushes-mesh_sculpt.blend/Brush/Clay'
                 sub = row.column()
                 sub.scale_x=.1
-                sub.operator('paint.brush_select',text = 'Draw').sculpt_tool='DRAW'
-                sub.operator('paint.brush_select',text = 'Grab').sculpt_tool='GRAB'
-                sub.operator('paint.brush_select',text = 'Flatten').sculpt_tool='FLATTEN'
-                sub.operator('paint.brush_select',text = 'Fill').sculpt_tool='FILL'
+                op = sub.operator('brush.asset_activate',text = 'Draw')
+                op.asset_library_type = 'ESSENTIALS'
+                op.relative_asset_identifier = 'brushes/essentials_brushes-mesh_sculpt.blend/Brush/Draw'
+                op = sub.operator('brush.asset_activate',text = 'Grab')
+                op.asset_library_type = 'ESSENTIALS'
+                op.relative_asset_identifier = 'brushes/essentials_brushes-mesh_sculpt.blend/Brush/Grab'
+                op = sub.operator('brush.asset_activate',text = 'Flatten')
+                op.asset_library_type = 'ESSENTIALS'
+                op.relative_asset_identifier = 'brushes/essentials_brushes-mesh_sculpt.blend/Brush/Flatten/Contrast'
+                op = sub.operator('brush.asset_activate',text = 'Fill')
+                op.asset_library_type = 'ESSENTIALS'
+                op.relative_asset_identifier = 'brushes/essentials_brushes-mesh_sculpt.blend/Brush/Fill/Deepen'
 #               col.operator('sculpt.dynamic_topology_toggle', text = 'Dynotopo')
                 row = col.row()
                 row.prop(sculpt.brush, "use_frontface")
                 row.prop(sculpt, "use_symmetry_x")
-                row.prop(sculpt, "use_smooth_shading")
+                #row.prop(sculpt, "use_smooth_shading")  # removed from Sculpt in 4.1+, no replacement
                 row = col.row()
                 if sculpt.detail_type_method in {'CONSTANT','MANUAL'}:
                     row.prop(sculpt, "constant_detail_resolution")
@@ -265,11 +282,11 @@ class HP_PT_object_properties(bpy.types.Panel):
 
 
                             
-        elif ob.type == 'GPENCIL':            
+        elif ob.type == 'GREASEPENCIL':
             toolsettings = bpy.context.tool_settings
             sculpt = toolsettings.sculpt
 
-            brush = toolsettings.unified_paint_settings
+            brush = toolsettings.gpencil_paint.unified_paint_settings
             col.separator()
             col.prop(toolsettings.gpencil_paint.brush, "size")
 
@@ -278,7 +295,7 @@ class HP_PT_object_properties(bpy.types.Panel):
             sub.scale_x=.1
             sub2 = row.column()
             sub2.scale_x=.1
-            sub.operator('wm.tool_set_by_id',text = 'Draw').name='builtin_brush.Draw'
+            sub.operator('wm.tool_set_by_id',text = 'Draw').name='builtin.brush'
             sub.operator('wm.tool_set_by_id',text = 'Erase').name='builtin_brush.Erase'
             sub.operator('wm.tool_set_by_id',text = 'Fill').name='builtin_brush.Fill'
             sub2.operator('wm.tool_set_by_id',text = 'Box').name='builtin.box'
@@ -287,11 +304,13 @@ class HP_PT_object_properties(bpy.types.Panel):
             col.prop(bpy.context.tool_settings.gpencil_sculpt, "lock_axis", text = '')
             col.prop(bpy.context.tool_settings, "gpencil_stroke_placement_view3d", text = '')
 
-            col2.operator_menu_enum("object.gpencil_modifier_add", "type")
-            for md in ob.grease_pencil_modifiers:
-                box = col2.template_greasepencil_modifier(md)
-                if box:
-                    getattr(self, md.type)(box, ob, md)                 
+            # GPv3 (4.3+): gpencil modifiers folded into the regular stack;
+            # object.gpencil_modifier_add, ob.grease_pencil_modifiers and
+            # UILayout.template_greasepencil_modifier were all removed.
+            col2.operator_menu_enum("object.modifier_add", "type")
+            for md in ob.modifiers:
+                box = col2.box()
+                box.label(text=md.name, icon='MODIFIER')
 
         elif ob.type == 'META':
             col2.label(text='META PROPERTIES')
@@ -412,7 +431,7 @@ class HP_PT_object_properties(bpy.types.Panel):
             col2.prop(curve, "twist_mode")
             col2.prop(curve, "twist_smooth", text="Smooth")
 
-            col2.prop(curve, "use_fill_deform")
+            #col2.prop(curve, "use_fill_deform")  # removed from bpy.types.Curve in Blender 5.x
             col2.prop(curve, "use_radius")
             col2.prop(curve, "use_stretch")
             col2.prop(curve, "use_deform_bounds")
@@ -451,14 +470,15 @@ class HP_PT_object_properties(bpy.types.Panel):
             props = scene.eevee
             box = col.box().column()
             
-            box.active = props.use_bloom
-            box.label(text = 'Bloom')
-            box.prop(props, "bloom_threshold")
-            box.prop(props, "bloom_knee")
-            box.prop(props, "bloom_radius")
-            box.prop(props, "bloom_color")
-            box.prop(props, "bloom_intensity")
-            box.prop(props, "bloom_clamp")
+            # EEVEE Legacy bloom removed in 4.2 (EEVEE Next); bloom is now the compositor Glare node.
+            #box.active = props.use_bloom
+            #box.label(text = 'Bloom')
+            #box.prop(props, "bloom_threshold")
+            #box.prop(props, "bloom_knee")
+            #box.prop(props, "bloom_radius")
+            #box.prop(props, "bloom_color")
+            #box.prop(props, "bloom_intensity")
+            #box.prop(props, "bloom_clamp")
             scene = context.scene
             rd = scene.render
             row = col2.row(align = True)

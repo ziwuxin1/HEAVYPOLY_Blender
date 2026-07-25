@@ -36,9 +36,9 @@ class HP_MT_pie_importexport(Menu):
 
         box.operator('wm.alembic_import', text='Import Alembic')
         box.operator('import_scene.fbx', text='Import FBX')
-        box.operator('import_mesh.stl', text='Import STL')
-        box.operator('import_scene.obj', text='Import OBJ')
-        box.operator('import_image.to_plane', text='Import Image Plane')
+        box.operator('wm.stl_import', text='Import STL')
+        box.operator('wm.obj_import', text='Import OBJ')
+        box.operator('image.import_as_mesh_planes', text='Import Image Plane')
         box.operator('wm.append', text = 'Append')
         box.operator("wm.link", text = "Link")
         #R
@@ -47,8 +47,8 @@ class HP_MT_pie_importexport(Menu):
         row.scale_y=1.5
         box.operator('wm.alembic_export', text='Export Alembic')
         box.operator('export_scene.fbx', text='Export FBX')
-        box.operator('export_mesh.stl', text='Export STL')
-        box.operator('export_scene.obj', text='Export OBJ')
+        box.operator('wm.stl_export', text='Export STL')
+        box.operator('wm.obj_export', text='Export OBJ')
         box.operator('image.save_as', text='Export Image')
 
         # bpy.ops.import_anim.bvh()

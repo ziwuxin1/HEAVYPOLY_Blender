@@ -5,7 +5,7 @@ bl_info = {
     "blender": (2, 80, 0),
     }
 import bpy
-import bgl
+# 'bgl' was removed in Blender 5.0; it was never referenced in this file, so the import is simply dropped.
 import blf
 import bmesh
 import time
@@ -34,7 +34,8 @@ def draw_callback_px(self, context):
         'SHIFT     | Extrude',
         ]
         
-    blf.size(font_id, 20, 42)
+    # blf.size() lost its dpi argument in 4.0; 20pt @ 42dpi == 11.67pt at the new fixed 72dpi.
+    blf.size(font_id, 11.67)
     for l in lines:
         blf.position(font_id, 30, (y + y_offset), 0)
         blf.color(font_id,.02,.02,.02,1)
@@ -45,7 +46,7 @@ def draw_callback_px(self, context):
             # blf.position(font_id, 300, 30, 0)
             # blf.draw(font_id, 'A / D = Resolution = ' + str(self.res*100) + '%')    
 
-    blf.size(font_id, 20, 72)
+    blf.size(font_id, 20)
     blf.position(font_id, 30, y_offset + 60, 0)
     blf.draw(font_id, 'DRAG  | Draw')
 # class VIEW3D_PT_hp_draw(bpy.types.Panel):
@@ -102,8 +103,10 @@ class HP_OT_draw_primitives(bpy.types.Operator):
         self.delta = 0
         self.mode = 'Draw'
         self.colormode = 'sat'
-        self.hue = bpy.data.brushes["Draw"].color.h 
-        self.value = bpy.data.brushes["Draw"].color.v
+        # 4.3+ brush assets: bpy.data.brushes["Draw"] no longer exists, and paint.vertex_color_set()
+        # reads the unified color (moved off ToolSettings onto the per-mode Paint struct in 5.0).
+        self.hue = context.tool_settings.vertex_paint.unified_paint_settings.color.h
+        self.value = context.tool_settings.vertex_paint.unified_paint_settings.color.v
         context.window_manager.modal_handler_add(self)
         self.bvhtree = self.bvhtree_from_object(context, context.active_object)
         self.drawbox = None
@@ -327,11 +330,12 @@ class HP_OT_draw_primitives(bpy.types.Operator):
                         
                     color_delta_x = (self.mouse_path_x[-2]-self.mouse_path_x[-1])*-.001
                     color_delta_y = (self.mouse_path_y[-2]-self.mouse_path_y[-1])*-.001
+                    ups = context.tool_settings.vertex_paint.unified_paint_settings
                     if self.colormode == 'sat':
-                        bpy.data.brushes["Draw"].color.s += color_delta_x
+                        ups.color.s += color_delta_x
                     if self.colormode == 'hue':
-                        bpy.data.brushes["Draw"].color.h += color_delta_x
-                    bpy.data.brushes["Draw"].color.v += color_delta_y
+                        ups.color.h += color_delta_x
+                    ups.color.v += color_delta_y
                     bpy.ops.paint.vertex_color_set()
                     bpy.ops.object.mode_set(mode='OBJECT', toggle=False) 
 

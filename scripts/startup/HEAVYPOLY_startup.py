@@ -6,7 +6,7 @@ from bpy.props import StringProperty, IntProperty, BoolProperty
 class ExampleAddonPreferences(AddonPreferences):
     # This must match the add-on name, use `__package__`
     # when defining this for add-on extensions or a sub-module of a python package.
-    bl_idname = __name__
+    bl_idname = __package__
 
     filepath: StringProperty(
         name="Example File Path",
@@ -37,7 +37,7 @@ class OBJECT_OT_addon_prefs_example(Operator):
 
     def execute(self, context):
         preferences = context.preferences
-        addon_prefs = preferences.addons[__name__].preferences
+        addon_prefs = preferences.addons[__package__].preferences
 
         info = "Path: {:s}, Number: {:d}, Boolean {!r}".format(
             addon_prefs.filepath, addon_prefs.number, addon_prefs.boolean,

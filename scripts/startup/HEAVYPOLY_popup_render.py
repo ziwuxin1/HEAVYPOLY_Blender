@@ -51,7 +51,8 @@ class HP_MT_popup_render(bpy.types.Operator):
 
         col.label(text='WORLD')
         world = bpy.context.scene.world
-        col.prop(scene.eevee, "use_soft_shadows")
+        # EEVEE Next (4.2+) removed use_soft_shadows; jittered shadows is the surviving equivalent
+        col.prop(scene.eevee, "use_shadow_jitter_viewport")
         if world.use_nodes:
             ntree = world.node_tree
             node = ntree.get_output_node('EEVEE')
@@ -66,7 +67,9 @@ class HP_MT_popup_render(bpy.types.Operator):
                 if input:
                     col.separator()
                     col.separator()
-                    col.prop(scene.eevee, "use_volumetric", text="Use Volumetric")
+                    # EEVEE Next (4.2+) removed the master use_volumetric toggle (volumes are driven by
+                    # material/world nodes now); use_volumetric_shadows is the surviving toggle here
+                    col.prop(scene.eevee, "use_volumetric_shadows", text="Volumetric Shadows")
                     col.template_node_view(ntree, node, inputvol)
                 else:
                     col.label(text="Incompatible output node")
@@ -96,6 +99,8 @@ class HP_MT_popup_render(bpy.types.Operator):
         col2.prop(scene.view_settings, 'view_transform', text='')
         col2.prop(scene.view_settings, 'look', text='')
         col2.template_curve_mapping(scene.view_settings, "curve_mapping", levels=True)
+        # 5.0+: media_type gates the available file_format values, expose it first
+        col2.prop(image_settings, "media_type", text = '')
         col2.prop(image_settings, "file_format", text = '')
         col2.prop(image_settings, "compression")
         row = col2.row()
@@ -110,7 +115,7 @@ class HP_MT_popup_render(bpy.types.Operator):
             row.prop(image_settings, "color_mode", expand = True)
             row = col.row()
             row.scale_x=.2
-            row.prop(image_settings, "col_depth", expand = True)
+            row.prop(image_settings, "color_depth", expand = True)
         col2.prop(rd, "filepath", text="")
         col2.prop(rd, "use_overwrite")
 #       col.prop(rd, "use_placeholder")
