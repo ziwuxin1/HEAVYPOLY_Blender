@@ -79,9 +79,13 @@ Custom scripts and pie menus to make Blender faster and easier to use — design
 
 ## 📝 Notes
 
-- `config/startup.blend` and `config/userpref.blend` are saved from an earlier Blender. Blender
-  upgrades them automatically on first load, so they do not need to be re-saved — keeping them in the
-  older format is what lets the same files still work on older Blender releases.
+- There is deliberately **no `config/startup.blend`**. Blender uses its own factory startup file, so
+  you get the standard Blender scene, workspaces and viewport (grid, toolbar, default material) —
+  with the HEAVYPOLY pie menus and hotkeys on top. The keymap and pie menus come from
+  `scripts/startup/`, not from the startup file, so no functionality is lost.
+- `config/userpref.blend` is saved from an earlier Blender. Blender upgrades it automatically on
+  first load, so it does not need to be re-saved — keeping it in the older format is what lets the
+  same file still work on older Blender releases.
 - Some EEVEE Legacy controls (Bloom, Soft Shadows, Light Cache baking, the old shadow-buffer
   settings) no longer exist in Blender 5.x and have been removed from the HEAVYPOLY panels. Bloom is
   now done with the **Glare** node in the compositor.
