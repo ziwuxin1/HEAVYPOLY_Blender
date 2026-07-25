@@ -1,18 +1,22 @@
-// HEAVYPOLY Manager - a small WinForms front-end for install / uninstall / launch.
+// HEAVYPOLY Manager - a self-contained WinForms front-end for install / uninstall / launch.
 //
-// The actual install logic lives in tools\heavypoly_setup.ps1 so there is a single
-// source of truth; this EXE only drives it and shows the output.
+// The whole payload (config\ and scripts\) and the install engine
+// (heavypoly_setup.ps1) are embedded as resources, so the compiled exe is a
+// single file that works on its own - copy it anywhere and run it.
 //
-// Build (no external dependencies - csc.exe ships with Windows):
-//   C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe /target:winexe ^
-//     /out:HEAVYPOLY-Manager.exe /reference:System.dll,System.Drawing.dll,System.Windows.Forms.dll ^
-//     tools\HeavypolyManager.cs
+// The install logic itself is NOT reimplemented here: at run time the embedded
+// engine is unpacked to a temp folder and driven with -SourceRoot, so there is
+// still exactly one implementation shared with install.bat / uninstall.bat.
+//
+// Build: see tools\build.ps1
 
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
+using System.IO.Compression;
+using System.Reflection;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Windows.Forms;
@@ -22,6 +26,8 @@ namespace Heavypoly
     public class MainForm : Form
     {
         const string MANIFEST = ".heavypoly-manifest.json";
+        const string RES_ZIP = "payload.zip";
+        const string RES_PS1 = "heavypoly_setup.ps1";
 
         readonly ComboBox _versions = new ComboBox();
         readonly Label _status = new Label();
@@ -30,18 +36,13 @@ namespace Heavypoly
         readonly Button _launch = new Button();
         readonly TextBox _log = new TextBox();
 
-        readonly string _exeDir;
-        readonly string _script;
         readonly string _configRoot;
 
         public MainForm()
         {
-            _exeDir = AppDomain.CurrentDomain.BaseDirectory.TrimEnd('\\');
-            _script = Path.Combine(_exeDir, "tools\\heavypoly_setup.ps1");
             _configRoot = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
                 "Blender Foundation\\Blender");
-
             BuildUi();
             LoadVersions();
         }
@@ -62,13 +63,8 @@ namespace Heavypoly
                 Location = new Point(18, 14),
                 AutoSize = true
             };
+            var lblVer = new Label { Text = "Blender version:", Location = new Point(20, 62), AutoSize = true };
 
-            var lblVer = new Label
-            {
-                Text = "Blender version:",
-                Location = new Point(20, 62),
-                AutoSize = true
-            };
             _versions.Location = new Point(126, 58);
             _versions.Width = 110;
             _versions.DropDownStyle = ComboBoxStyle.DropDownList;
@@ -119,15 +115,6 @@ namespace Heavypoly
             get { return _versions.SelectedItem == null ? null : _versions.SelectedItem.ToString(); }
         }
 
-        string TargetDir
-        {
-            get
-            {
-                var v = SelectedVersion;
-                return v == null ? null : Path.Combine(_configRoot, v);
-            }
-        }
-
         void LoadVersions()
         {
             _versions.Items.Clear();
@@ -140,11 +127,7 @@ namespace Heavypoly
                     if (Regex.IsMatch(name, @"^\d+\.\d+$")) found.Add(name);
                 }
             }
-            found.Sort(delegate(string a, string b)
-            {
-                return new Version(a).CompareTo(new Version(b));
-            });
-
+            found.Sort(delegate(string a, string b) { return new Version(a).CompareTo(new Version(b)); });
             foreach (var v in found) _versions.Items.Add(v);
 
             if (found.Count == 0)
@@ -164,9 +147,9 @@ namespace Heavypoly
 
         void RefreshStatus()
         {
-            var dir = TargetDir;
-            if (dir == null) return;
-            bool installed = File.Exists(Path.Combine(dir, MANIFEST));
+            var v = SelectedVersion;
+            if (v == null) return;
+            bool installed = File.Exists(Path.Combine(Path.Combine(_configRoot, v), MANIFEST));
             _status.Text = installed ? "INSTALLED" : "not installed";
             _status.ForeColor = installed ? Color.SeaGreen : Color.Gray;
             _install.Enabled = true;
@@ -183,20 +166,46 @@ namespace Heavypoly
             if (!busy) RefreshStatus();
         }
 
+        // ------------------------------------------------- embedded payload
+
+        // Unpack the embedded engine + payload into a fresh temp folder.
+        // Returns the temp root; caller must delete it.
+        static string Unpack()
+        {
+            var asm = Assembly.GetExecutingAssembly();
+            string tmp = Path.Combine(Path.GetTempPath(), "heavypoly_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(tmp);
+
+            using (var s = asm.GetManifestResourceStream(RES_PS1))
+            {
+                if (s == null) throw new Exception("Embedded resource missing: " + RES_PS1);
+                using (var f = File.Create(Path.Combine(tmp, RES_PS1))) s.CopyTo(f);
+            }
+
+            string src = Path.Combine(tmp, "src");
+            Directory.CreateDirectory(src);
+            using (var s = asm.GetManifestResourceStream(RES_ZIP))
+            {
+                if (s == null) throw new Exception("Embedded resource missing: " + RES_ZIP);
+                using (var zip = new ZipArchive(s, ZipArchiveMode.Read))
+                {
+                    foreach (var entry in zip.Entries)
+                    {
+                        if (string.IsNullOrEmpty(entry.Name)) continue;   // directory entry
+                        string dest = Path.Combine(src, entry.FullName.Replace('/', '\\'));
+                        Directory.CreateDirectory(Path.GetDirectoryName(dest));
+                        entry.ExtractToFile(dest, true);
+                    }
+                }
+            }
+            return tmp;
+        }
+
         // ---------------------------------------------------------------- actions
 
         void RunAction(string action)
         {
             if (SelectedVersion == null) return;
-
-            if (!File.Exists(_script))
-            {
-                MessageBox.Show(
-                    "Cannot find:\n" + _script +
-                    "\n\nKeep HEAVYPOLY-Manager.exe in the repository folder, next to the tools\\ directory.",
-                    "HEAVYPOLY", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return;
-            }
 
             if (action == "uninstall")
             {
@@ -215,10 +224,22 @@ namespace Heavypoly
             var t = new Thread(delegate()
             {
                 int code = -1;
-                try { code = RunPowerShell(action, version); }
+                string tmp = null;
+                try
+                {
+                    tmp = Unpack();
+                    code = RunPowerShell(tmp, action, version);
+                }
                 catch (Exception ex) { Log("ERROR: " + ex.Message); }
+                finally
+                {
+                    if (tmp != null)
+                    {
+                        try { Directory.Delete(tmp, true); } catch { }
+                    }
+                }
 
-                var finished = code;
+                int finished = code;
                 BeginInvoke((Action)delegate
                 {
                     SetBusy(false);
@@ -233,16 +254,17 @@ namespace Heavypoly
             t.Start();
         }
 
-        int RunPowerShell(string action, string version)
+        int RunPowerShell(string tmp, string action, string version)
         {
             var psi = new ProcessStartInfo("powershell.exe",
-                "-NoProfile -ExecutionPolicy Bypass -File \"" + _script + "\"" +
-                " -Action " + action + " -BlenderVersion " + version);
+                "-NoProfile -ExecutionPolicy Bypass -File \"" + Path.Combine(tmp, RES_PS1) + "\"" +
+                " -Action " + action +
+                " -BlenderVersion " + version +
+                " -SourceRoot \"" + Path.Combine(tmp, "src") + "\"");
             psi.UseShellExecute = false;
             psi.CreateNoWindow = true;
             psi.RedirectStandardOutput = true;
             psi.RedirectStandardError = true;
-            psi.WorkingDirectory = _exeDir;
 
             using (var p = new Process())
             {
@@ -287,11 +309,9 @@ namespace Heavypoly
             foreach (var env in new string[] { "ProgramFiles", "ProgramFiles(x86)" })
             {
                 var pf = Environment.GetEnvironmentVariable(env);
-                if (!string.IsNullOrEmpty(pf))
-                    roots.Add(Path.Combine(pf, "Blender Foundation"));
+                if (!string.IsNullOrEmpty(pf)) roots.Add(Path.Combine(pf, "Blender Foundation"));
             }
 
-            // Prefer the exact version the user selected.
             if (version != null)
             {
                 foreach (var root in roots)
@@ -302,7 +322,6 @@ namespace Heavypoly
                 }
             }
 
-            // Otherwise take the newest Blender we can find.
             string best = null;
             Version bestVer = null;
             foreach (var root in roots)

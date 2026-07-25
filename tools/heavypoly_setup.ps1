@@ -34,14 +34,17 @@ param(
     [string]$Action = 'install',
     [string]$BlenderVersion = '',
     [string]$ConfigRoot = (Join-Path $env:APPDATA 'Blender Foundation\Blender'),
+    [string]$SourceRoot = '',
     [switch]$Interactive
 )
 
 $ErrorActionPreference = 'Stop'
 $MANIFEST_NAME = '.heavypoly-manifest.json'
 
-# Repo root is the parent of tools/
-$RepoRoot = Split-Path -Parent $PSScriptRoot
+# Where config/ and scripts/ are read from. Normally the repo root (the parent of
+# tools/). The standalone HEAVYPOLY-Manager.exe unpacks its embedded payload to a
+# temp folder and passes it in via -SourceRoot.
+$RepoRoot = if ($SourceRoot) { $SourceRoot } else { Split-Path -Parent $PSScriptRoot }
 
 function Write-Step { param([string]$m) Write-Host "  $m" }
 function Write-Ok   { param([string]$m) Write-Host "  [OK] $m" -ForegroundColor Green }
