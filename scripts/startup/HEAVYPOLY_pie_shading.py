@@ -68,10 +68,11 @@ class HP_MT_pie_shading(Menu):
 #        row.operator("shading.bg_wire", text='BG Wire')
         row = col.row(align=True)
         row.scale_y=1.5
-        row.operator("scene.light_cache_bake", text='Bake Lighting')
+        # 5.0: scene.light_cache_bake/free removed with EEVEE Legacy; EEVEE Next uses object.lightprobe_cache_*
+        row.operator("object.lightprobe_cache_bake", text='Bake Lighting').subset = 'ALL'
         row = col.row(align=True)
         row.scale_y=1.5
-        row.operator("scene.light_cache_free", text='Free Lighting')
+        row.operator("object.lightprobe_cache_free", text='Free Lighting').subset = 'ALL'
 
         #BOTTOM RIGHT
         split = pie.split()
@@ -81,7 +82,8 @@ class HP_MT_pie_shading(Menu):
         box = col.box()
         box.prop(overlay, "show_overlays", text="OVERLAYS")
         box.prop(overlay, "show_extras", text="EXTRAS")
-        box.prop(context.scene.eevee, "use_soft_shadows", text="SOFT SHADOWS")
+        # 4.2/EEVEE Next: SceneEEVEE.use_soft_shadows removed; use_shadow_jitter_viewport is the successor toggle
+        box.prop(context.scene.eevee, "use_shadow_jitter_viewport", text="SOFT SHADOWS")
         # box.prop(overlay, "show_backface_culling", text="HIDE BACKFACES")
         box.prop(overlay, "show_cursor", text="3D CURSOR")
         box.operator("object.add_normal_modifier", text = 'Shade Smooth')
@@ -168,7 +170,8 @@ def add_smooth_by_angle(obj):
         bpy.ops.object.modifier_add_node_group(
             asset_library_type='ESSENTIALS',
             asset_library_identifier="",
-            relative_asset_identifier="geometry_nodes\\smooth_by_angle.blend\\NodeTree\\Smooth by Angle"
+            # 5.0: Essentials assets moved; geometry_nodes/smooth_by_angle.blend is now nodes/geometry_nodes_essentials.blend
+            relative_asset_identifier="nodes\\geometry_nodes_essentials.blend\\NodeTree\\Smooth by Angle"
         )
 
         # Rename the modifier to "Smooth by Angle" explicitly
@@ -176,8 +179,9 @@ def add_smooth_by_angle(obj):
         modifier.name = "Smooth by Angle"
 
         # Configure the modifier
-        modifier["Input_1"] = angle
-        modifier["Socket_1"] = True
+        # 5.2: Geometry Nodes modifier inputs are no longer IDProperties; use modifier.properties.inputs.<id>.value
+        modifier.properties.inputs.Input_1.value = angle
+        modifier.properties.inputs.Socket_1.value = True
         obj.data.update()
 
         print(f"'Smooth by Angle' modifier added to object '{obj.name}'.")

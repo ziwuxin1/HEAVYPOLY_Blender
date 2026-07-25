@@ -68,8 +68,8 @@ class HP_MT_pie_areas(Menu):
 		prop.data_path = "area.type"
 		prop.value = 'IMAGE_EDITOR'
 		prop = row.operator("wm.context_set_enum", text="UV Editor")
-		prop.data_path = "area.type"
-		prop.value = 'UV_EDITOR'
+		prop.data_path = "area.ui_type"
+		prop.value = 'UV'
 
 		prop = pie.operator("wm.context_set_enum", text="Shader Editor")
 		prop.data_path = "area.type"

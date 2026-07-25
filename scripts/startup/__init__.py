@@ -1,8 +1,8 @@
 bl_info = {
     "name": "HEAVYPOLY",
     "author": "Vaughan Ling, Julien Gauthier",
-    "version": (1, 0, 0),
-    "blender": (4, 3, 0),
+    "version": (2, 0, 0),
+    "blender": (5, 2, 0),
     "location": "Various Panels",
     "description": "Heavypoly config, add-on version",
     "category": "",

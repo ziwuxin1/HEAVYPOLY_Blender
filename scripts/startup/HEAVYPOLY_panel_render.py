@@ -41,7 +41,8 @@ class HP_PT_render(bpy.types.Panel):
 
         col.label(text='WORLD')
         world = bpy.context.scene.world
-        col.prop(scene.eevee, "use_soft_shadows")
+        # EEVEE Next (4.2+) removed use_soft_shadows; jittered shadows is the surviving equivalent
+        col.prop(scene.eevee, "use_shadow_jitter_viewport")
 
         # worldnodes = world.node_tree.nodes
         # actnode = worldnodes.active
@@ -94,6 +95,8 @@ class HP_PT_render(bpy.types.Panel):
         col2.prop(scene.view_settings, 'view_transform', text='')
         col2.prop(scene.view_settings, 'look', text='')
         col2.template_curve_mapping(scene.view_settings, "curve_mapping", type='COLOR', levels=True)
+        # 5.0+: media_type gates the available file_format values, expose it first
+        col2.prop(image_settings, "media_type", text = '')
         col2.prop(image_settings, "file_format", text = '')
         row = col2.row()
         row.prop(image_settings, "compression")
@@ -110,7 +113,7 @@ class HP_PT_render(bpy.types.Panel):
             row.prop(image_settings, "color_mode", expand = True)
             row = col.row()
             row.scale_x=.2
-            row.prop(image_settings, "col_depth", expand = True)
+            row.prop(image_settings, "color_depth", expand = True)
         col2.prop(rd, "filepath", text="")
 #       col.prop(rd, "use_placeholder")
 

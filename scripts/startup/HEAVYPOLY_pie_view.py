@@ -95,6 +95,8 @@ class HP_OT_render_presets(bpy.types.Operator):
 		if self.type == 'Viewport To Movie':
 			scene.render.resolution_percentage = 100
 			bpy.context.space_data.overlay.show_overlays = False
+			# 5.0+: media_type gates which file_format values are selectable, set it first
+			scene.render.image_settings.media_type = 'VIDEO'
 			scene.render.image_settings.file_format = 'FFMPEG'
 			# print('quicktime')
 			# print(bpy.context.scene.render.ffmpeg.format)
@@ -105,6 +107,8 @@ class HP_OT_render_presets(bpy.types.Operator):
 			bpy.context.scene.render.engine = 'CYCLES'
 			scene.render.resolution_percentage = 25
 			scene.frame_step = 2
+			# 5.0+: media_type gates which file_format values are selectable, set it first
+			scene.render.image_settings.media_type = 'MULTI_LAYER_IMAGE'
 			scene.render.image_settings.file_format = 'OPEN_EXR_MULTILAYER'
 			scene.render.image_settings.color_mode = 'RGBA'
 			bpy.context.scene.cycles.samples = 256
@@ -114,6 +118,8 @@ class HP_OT_render_presets(bpy.types.Operator):
 			bpy.context.scene.render.engine = 'CYCLES'
 			scene.render.resolution_percentage = 50
 			scene.frame_step = 2
+			# 5.0+: media_type gates which file_format values are selectable, set it first
+			scene.render.image_settings.media_type = 'MULTI_LAYER_IMAGE'
 			scene.render.image_settings.file_format = 'OPEN_EXR_MULTILAYER'
 			scene.render.image_settings.color_mode = 'RGBA'
 			bpy.context.scene.cycles.samples = 512
@@ -123,6 +129,8 @@ class HP_OT_render_presets(bpy.types.Operator):
 			bpy.context.scene.render.engine = 'CYCLES'
 			scene.render.resolution_percentage = 100
 			scene.frame_step = 1
+			# 5.0+: media_type gates which file_format values are selectable, set it first
+			scene.render.image_settings.media_type = 'MULTI_LAYER_IMAGE'
 			scene.render.image_settings.file_format = 'OPEN_EXR_MULTILAYER'
 			scene.render.image_settings.color_mode = 'RGBA'
 			bpy.context.scene.cycles.samples = 1024
@@ -132,6 +140,8 @@ class HP_OT_render_presets(bpy.types.Operator):
 			bpy.context.scene.render.engine = 'CYCLES'
 			scene.render.resolution_percentage = 100
 			scene.frame_step = 1
+			# 5.0+: media_type gates which file_format values are selectable, set it first
+			scene.render.image_settings.media_type = 'MULTI_LAYER_IMAGE'
 			scene.render.image_settings.file_format = 'OPEN_EXR_MULTILAYER'
 			scene.render.image_settings.color_mode = 'RGBA'
 			bpy.context.scene.cycles.samples = 2048

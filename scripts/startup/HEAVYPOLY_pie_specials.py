@@ -115,8 +115,9 @@ class HP_OT_subdivide_cylinder(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}  # enable undo for the operator.
 
     def execute(self, context):
-        bpy.ops.mesh.loop_multi_select(ring=False)
-        bpy.ops.mesh.loop_multi_select(ring=True)
+        # 5.x: mesh.loop_multi_select was split into select_edge_loop_multi / select_edge_ring_multi (no 'ring' arg)
+        bpy.ops.mesh.select_edge_loop_multi()
+        bpy.ops.mesh.select_edge_ring_multi()
         bpy.ops.mesh.bevel(offset_type='PERCENT', offset_pct=25, affect='EDGES')
         return {'FINISHED'}
 
@@ -227,7 +228,8 @@ def HP_Array_On_Curve(curve, obj, node_group_name):
     modifier.node_group = bpy.data.node_groups[node_group_name]
 
     # Set the object as an input to the Geometry Node group
-    modifier["Socket_3"]= obj
+    # 5.2: GN modifier inputs are no longer IDProperties; must use attribute access on modifier.properties.inputs
+    modifier.properties.inputs.Socket_3.value = obj
     print("Object attached to curve")
 
 # Add a Geometry Nodes modifier to the curve and set the selected object as an input
@@ -244,7 +246,8 @@ def HP_Object_On_Faces(obj, obj2, node_group_name):
     modifier.node_group = bpy.data.node_groups[node_group_name]
 
     # Set the object as an input to the Geometry Node group
-    modifier["Socket_3"]= obj2
+    # 5.2: GN modifier inputs are no longer IDProperties; must use attribute access on modifier.properties.inputs
+    modifier.properties.inputs.Socket_3.value = obj2
     print("Collection attached to Modifier")
 
 

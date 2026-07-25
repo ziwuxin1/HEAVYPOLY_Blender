@@ -15,6 +15,11 @@ class HP_MT_popup_uber(bpy.types.Menu):
         # row = split.row(align=True)
         
         col = layout.column(align=True)
+        # 'ob' and 'col2' were used below but never assigned, so this menu raised
+        # NameError on every draw. The second column was lost in an earlier refactor;
+        # keep everything in one column rather than invent a new layout.
+        col2 = col
+        ob = context.active_object
         layout = layout.menu_pie()
         layout.operator_context = 'INVOKE_REGION_WIN'
         #Left
@@ -22,13 +27,13 @@ class HP_MT_popup_uber(bpy.types.Menu):
         #Right
         layout.operator("transform.resize", text="Scale")
         #Bottom
-        layout.operator("mesh.smart_bevel", text = 'Bevel')
+        layout.operator("view3d.smart_bevel", text = 'Bevel')
         #Top
         layout.operator("mesh.hp_extrude", text = 'Extrude')
         #Top Left
         layout.operator("transform.shrink_fatten",text = 'Move')
         #Top Right
-        layout.operator("mesh.duplicate_extrude", text = 'Extrude')
+        layout.operator("mesh.dupli_extrude_cursor", text = 'Extrude')
         #Bottom Left
         layout.operator('popup.hp_render',text = 'Render Settings')
         #Bottom Right
@@ -47,7 +52,8 @@ class HP_MT_popup_uber(bpy.types.Menu):
             elif camdat.type == 'PANO':
                 engine = context.engine
                 if engine == 'CYCLES':
-                    ccam = camdat.cycles
+                    # Camera.cycles removed in 4.3; panoramic settings now live on the Camera itself
+                    ccam = camdat
                     col.prop(ccam, "panorama_type")
                     if ccam.panorama_type == 'FISHEYE_EQUIDISTANT':
                         col.prop(ccam, "fisheye_fov")
@@ -64,21 +70,21 @@ class HP_MT_popup_uber(bpy.types.Menu):
                 elif engine in {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_OPENGL'}:
                     col.prop(camdat, "lens")
             row = col.row()
-            row.prop(camdat, "dof_distance", text="Focus Distance")
-            row.prop(camdat, "dof_object", text="")
+            row.prop(camdat.dof, "focus_distance", text="Focus Distance")
+            row.prop(camdat.dof, "focus_object", text="")
 
-            dof_options = camdat.gpu_dof        
+            dof_options = camdat.dof
             if context.engine == 'BLENDER_EEVEE':
                 row = col.row(align = True)
-                row.prop(dof_options, "fstop")
-                row.prop(dof_options, "blades")
+                row.prop(dof_options, "aperture_fstop")
+                row.prop(dof_options, "aperture_blades")
                 row = col.row(align = True)
-                row.prop(dof_options, "rotation")
-                row.prop(dof_options, "ratio")
+                row.prop(dof_options, "aperture_rotation")
+                row.prop(dof_options, "aperture_ratio")
             else:
                 col.label(text="Viewport")
-                col.prop(dof_options, "fstop")
-                col.prop(dof_options, "blades")
+                col.prop(dof_options, "aperture_fstop")
+                col.prop(dof_options, "aperture_blades")
             #SECOND COLUMN##############################################################
             
 
@@ -100,6 +106,8 @@ class HP_MT_popup_uber(bpy.types.Menu):
         # if bpy.context.space_data.region_3d.view_perspective == 'CAMERA':
             # cam_props(bpy.context.scene.camera)  
 
+        if ob is None:
+            return
         if ob.type == 'CAMERA':
             col.prop(ob, 'name', text = '')
             col.separator()

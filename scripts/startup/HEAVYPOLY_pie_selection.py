@@ -60,8 +60,7 @@ class HP_MT_pie_select(Menu):
         # top
 
         match bpy.context.object.type:
-            case "GPENCIL":
-                pie.operator('object.mode_set', text = 'GP Edit', icon='EDITMODE_HLT').mode='EDIT_GPENCIL'
+            # Removed dead 'GPENCIL' arm: Object.type has no 'GPENCIL' since 4.3 (GPv3 reports 'GREASEPENCIL')
             case "GREASEPENCIL":
                 pie.operator('object.mode_set', text = 'GP Edit', icon='EDITMODE_HLT').mode='EDIT'
             case "META":
@@ -75,8 +74,7 @@ class HP_MT_pie_select(Menu):
 
         # topleft
         match bpy.context.object.type:
-            case "GPENCIL":
-                pie.operator('object.mode_set', text = 'GP Draw', icon='GREASEPENCIL').mode='PAINT_GPENCIL'
+            # Removed dead 'GPENCIL' arm: object type gone and 'PAINT_GPENCIL' removed from mode_set since 4.3
             case "GREASEPENCIL":
                 pie.operator('object.mode_set', text = 'GP Draw', icon='GREASEPENCIL').mode='PAINT_GREASE_PENCIL'
             case "ARMATURE":
@@ -93,8 +91,7 @@ class HP_MT_pie_select(Menu):
 
         # topright
         match bpy.context.object.type:
-            case "GPENCIL":
-                pie.operator('object.mode_set', text = "GP Sculpt", icon="SCULPTMODE_HLT").mode="SCULPT_GPENCIL"
+            # Removed dead 'GPENCIL' arm: object type gone and 'SCULPT_GPENCIL' removed from mode_set since 4.3
             case "GREASEPENCIL":
                 pie.operator('object.mode_set', text = "GP Sculpt", icon="SCULPTMODE_HLT").mode="SCULPT_GREASE_PENCIL"
             case "META":
@@ -144,9 +141,7 @@ class HP_MT_pie_select(Menu):
                 col.operator('object.mode_set', text = 'Weight Paint', icon='WPAINT_HLT').mode='WEIGHT_PAINT'
                 col.operator('object.mode_set', text = 'Texture Paint', icon='BRUSH_DATA').mode='TEXTURE_PAINT'
                 col.operator('object.sculpt_mode_with_dynotopo', text = 'Sculpt With Dynotopo', icon='SCULPTMODE_HLT')
-            case "GPENCIL":
-                col.operator('object.mode_set', text = 'Vertex Paint', icon='VPAINT_HLT').mode='VERTEX_GPENCIL'
-                col.operator('object.mode_set', text = 'Weight Paint', icon='WPAINT_HLT').mode='WEIGHT_GPENCIL'
+            # Removed dead 'GPENCIL' arm: object type gone and 'VERTEX_GPENCIL'/'WEIGHT_GPENCIL' removed since 4.3
             case "GREASEPENCIL":
                 col.operator('object.mode_set', text = 'Vertex Paint', icon='VPAINT_HLT').mode='VERTEX_GREASE_PENCIL'
                 col.operator('object.mode_set', text = 'Weight Paint', icon='WPAINT_HLT').mode='WEIGHT_GREASE_PENCIL'
@@ -209,18 +204,16 @@ class HP_OT_SelectModeSmart(bpy.types.Operator):
                     case "MESH":
                         bpy.ops.object.mode_set(mode='EDIT')
                         select(self.selectmode)
-                    case "GPENCIL":
-                        bpy.ops.object.mode_set(mode='GPENCIL_PAINT')
-                    case "GPENCIL":
+                    # Legacy 'GPENCIL' object type and 'GPENCIL_PAINT' mode removed in 4.3; GPv3 is 'GREASEPENCIL'
+                    case "GREASEPENCIL":
                         bpy.ops.object.mode_set(mode='PAINT_GREASE_PENCIL')
                     case "CURVE" | "FONT":
                         bpy.ops.object.mode_set(mode='EDIT')
             case "EDIT_MESH":
                 select(self.selectmode)
-            case "GPENCIL_PAINT":
-                bpy.context.mode = "OBJECT"
+            # 'GPENCIL_PAINT' is not a Context.mode value; Context.mode is read-only so use mode_set instead
             case "PAINT_GREASE_PENCIL":
-                bpy.context.mode = "OBJECT"
+                bpy.ops.object.mode_set(mode='OBJECT')
             case _:
                 bpy.ops.object.mode_set(mode="EDIT")
         return {'FINISHED'}
@@ -250,7 +243,7 @@ class HP_OT_SelectSmartLinkedAndLoop(bpy.types.Operator):
 
     def invoke(self, context, event):
         if tuple(bpy.context.scene.tool_settings.mesh_select_mode) == (False, True, False):
-            bpy.ops.mesh.loop_multi_select()
+            bpy.ops.mesh.select_edge_loop_multi()
         else:
             bpy.ops.mesh.select_linked(delimit={'SEAM'})
         return {'FINISHED'}

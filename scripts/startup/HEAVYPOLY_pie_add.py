@@ -159,8 +159,8 @@ class HP_OT_add_primitive(bpy.types.Operator):
                 bpy.ops.mesh.primitive_uv_sphere_add(align=align_mode)
 
             if self.type == 'Grease_Pencil':
-                bpy.ops.object.gpencil_add()
-                bpy.ops.object.mode_set(mode='GPENCIL_PAINT')
+                bpy.ops.object.grease_pencil_add()
+                bpy.ops.object.mode_set(mode='PAINT_GREASE_PENCIL')
             if self.type == 'Curve':
                 bpy.ops.curve.primitive_nurbs_path_add()
                 bpy.ops.object.editmode_toggle()
@@ -170,7 +170,7 @@ class HP_OT_add_primitive(bpy.types.Operator):
                 bpy.context.active_object.name = 'Light Point'
                 bpy.context.object.data.energy = 200
                 bpy.context.object.data.shadow_soft_size = 0.3
-                bpy.context.object.data.shadow_buffer_bias = 0.1
+                # shadow_buffer_bias removed in 4.2 (EEVEE Next shadow rework), no replacement - bias is automatic now
                 bpy.context.object.data.shadow_buffer_clip_start = 0.1
                 
             if self.type == 'Area_Light':
@@ -182,7 +182,7 @@ class HP_OT_add_primitive(bpy.types.Operator):
                 bpy.context.active_object.data.size_y = 3
                 bpy.context.active_object.data.energy = 200
                 bpy.context.active_object.data.shadow_soft_size = 0.3
-                bpy.context.active_object.data.shadow_buffer_bias = 0.1
+                # shadow_buffer_bias removed in 4.2 (EEVEE Next shadow rework), no replacement - bias is automatic now
                 bpy.context.active_object.data.shadow_buffer_clip_start = 0.1
 
         t_axis = bpy.context.scene.transform_orientation_slots[0].type

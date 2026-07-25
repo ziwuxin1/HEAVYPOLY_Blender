@@ -90,8 +90,8 @@ class HP_MT_popup_materials(bpy.types.Operator):
         col.separator()
 
 
-        if actob.type == 'GPENCIL':
-            col.operator('gpencil.stroke_change_color', icon='NONE', text='Apply')
+        if actob.type == 'GREASEPENCIL':
+            col.operator('grease_pencil.stroke_material_set', icon='NONE', text='Apply')
         else:
             col.operator('3dview.material_new', icon='NONE', text='New Material')
         col.operator('3dview.material_copy', icon='NONE', text='Duplicate Material')
@@ -119,7 +119,7 @@ class HP_MT_popup_materials(bpy.types.Operator):
             print('No Material Selected')
         col.label(text = 'VERTEX COLOR (for _V materials)')
         ts = context.tool_settings
-        ups = ts.unified_paint_settings
+        ups = ts.vertex_paint.unified_paint_settings
         ptr = ups if ups.use_unified_color else ts.vertex_paint.brush
         col.template_color_picker(ptr, 'color', value_slider=True)
         col.prop(ptr, 'color', text='')
@@ -130,7 +130,7 @@ class HP_MT_popup_materials(bpy.types.Operator):
             col.operator("ui.eyedropper_id", text='Eyedropper')
 
             me = bpy.context.active_object.data
-            col.template_list("MESH_UL_vcols", "vcols", me, "vertex_colors", me.vertex_colors, "active_index", rows=1)
+            col.template_list("MESH_UL_color_attributes", "color_attributes", me, "color_attributes", me.color_attributes, "active_color_index", rows=1)
         col.separator()
 
         #Nodes
@@ -181,8 +181,8 @@ class HP_MT_popup_materials(bpy.types.Operator):
                 col = row.column(align=True)
                 col.template_ID(gpcolor, "stroke_image", open="image.open")
                 col.prop(gpcolor, "pixel_size", text="UV Factor")
-                col.prop(gpcolor, "use_stroke_pattern", text="Use As Pattern")
-            if gpcolor.stroke_style == 'SOLID' or gpcolor.use_stroke_pattern is True:
+                # removed: use_stroke_pattern no longer exists on MaterialGPencilStyle (Grease Pencil v3)
+            if gpcolor.stroke_style == 'SOLID':
                 col2.prop(gpcolor, "color", text="")
             col2.label(text='')
             col2.active = not gpcolor.lock
@@ -193,61 +193,48 @@ class HP_MT_popup_materials(bpy.types.Operator):
                 col2.prop(gpcolor, "gradient_type", text="")
             if gpcolor.fill_style != 'TEXTURE':
                 col2.prop(gpcolor, "fill_color", text="")
-                if gpcolor.fill_style in {'GRADIENT', 'CHESSBOARD'}:
+                # the 'CHESSBOARD' fill style was removed in Grease Pencil v3 (fill_style is now SOLID/GRADIENT/TEXTURE)
+                if gpcolor.fill_style == 'GRADIENT':
                     col2.prop(gpcolor, "mix_color", text="")
                 if gpcolor.fill_style == 'GRADIENT':
                     col2.prop(gpcolor, "mix_factor", text="Gradient Mix")
-                if gpcolor.fill_style in {'GRADIENT', 'CHESSBOARD'}:
+                if gpcolor.fill_style == 'GRADIENT':
                     col2.prop(gpcolor, "flip", text="Flip Colors")
-                    col2.prop(gpcolor, "pattern_shift", text="Location")
-                    col2.prop(gpcolor, "pattern_scale", text="Scale")
-                if gpcolor.gradient_type == 'RADIAL' and gpcolor.fill_style not in {'SOLID', 'CHESSBOARD'}:
-                    col2.prop(gpcolor, "pattern_radius", text="Radius")
-                else:
-                    if gpcolor.fill_style != 'SOLID':
-                        col2.prop(gpcolor, "pattern_angle", text="Angle")
-                if gpcolor.fill_style == 'CHESSBOARD':
-                    col2.prop(gpcolor, "pattern_gridsize", text="Box Size")
+                # removed: pattern_shift / pattern_scale / pattern_radius / pattern_angle / pattern_gridsize
+                # no longer exist on MaterialGPencilStyle in Grease Pencil v3
 
             # Texture
-            if gpcolor.fill_style == 'TEXTURE' or (gpcolor.texture_mix is True and gpcolor.fill_style == 'SOLID'):
+            # removed: texture_mix / use_fill_pattern / texture_opacity no longer exist on MaterialGPencilStyle (Grease Pencil v3)
+            if gpcolor.fill_style == 'TEXTURE':
                 col2.template_ID(gpcolor, "fill_image", open="image.open")
-                if gpcolor.fill_style == 'TEXTURE':
-                    col2.prop(gpcolor, "use_fill_pattern", text="Use As Pattern")
-                    if gpcolor.use_fill_pattern is True:
-                        col2.prop(gpcolor, "fill_color", text="Color")
                 col2.prop(gpcolor, "texture_offset", text="Offset")
                 col2.prop(gpcolor, "texture_scale", text="Scale")
                 col2.prop(gpcolor, "texture_angle")
-                col2.prop(gpcolor, "texture_opacity")
                 col2.prop(gpcolor, "texture_clamp", text="Clip Image")
-                if gpcolor.use_fill_pattern is False:
-                    col2.prop(gpcolor, "texture_mix", text="Mix With Color")
-                    if gpcolor.texture_mix is True:
-                        col2.prop(gpcolor, "fill_color", text="Mix Color")
-                        col2.prop(gpcolor, "mix_factor", text="Mix Factor", slider=True)
+                col2.prop(gpcolor, "mix_factor", text="Mix Factor", slider=True)
 
 
             col2.label(text='')
             col2.label(text='                                  /// LAYERS')
-            gpd = context.gpencil_data
+            # context.gpencil_data / context.active_gpencil_layer were removed with the Grease Pencil v3 split
+            gpd = ob.data if (ob is not None and ob.type == 'GREASEPENCIL') else None
             row = col2.row()
             sub = row.column()
-            layer_rows = 7
-            sub.template_list("GPENCIL_UL_layer", "", gpd, "layers", gpd.layers, "active_index",
-                              rows=layer_rows, reverse=True)
+            # GPENCIL_UL_layer no longer exists; GPv3 uses the built-in layer tree template
+            sub.template_grease_pencil_layer_tree()
             sub = row.column()
-            sub.operator("gpencil.layer_add", icon='ADD', text="")
+            sub.operator("grease_pencil.layer_add", icon='ADD', text="")
 
-            sub.operator("gpencil.layer_remove", icon='REMOVE', text="")
-            sub.operator("gpencil.layer_move", icon='TRIA_UP', text="").type = 'UP'
-            sub.operator("gpencil.layer_move", icon='TRIA_DOWN', text="").type = 'DOWN'
-            sub.operator("gpencil.layer_merge", icon='TRIA_DOWN_BAR', text="")
-            sub.operator("gpencil.layer_isolate", icon='GREASEPENCIL', text="").affect_visibility = False
-            sub.operator("gpencil.layer_isolate", icon='RESTRICT_VIEW_OFF', text="").affect_visibility = True
-            sub.menu("GPENCIL_MT_layer_specials", icon='ERROR', text="")
-            gpl = context.active_gpencil_layer
-            col2.prop(gpl, "opacity", text="Layer Opacity", slider=True)
+            sub.operator("grease_pencil.layer_remove", icon='REMOVE', text="")
+            sub.operator("grease_pencil.layer_move", icon='TRIA_UP', text="").direction = 'UP'
+            sub.operator("grease_pencil.layer_move", icon='TRIA_DOWN', text="").direction = 'DOWN'
+            sub.operator("grease_pencil.layer_merge", icon='TRIA_DOWN_BAR', text="").mode = 'ACTIVE'
+            sub.operator("grease_pencil.layer_isolate", icon='GREASEPENCIL', text="").affect_visibility = False
+            sub.operator("grease_pencil.layer_isolate", icon='RESTRICT_VIEW_OFF', text="").affect_visibility = True
+            sub.menu("GREASE_PENCIL_MT_grease_pencil_add_layer_extra", icon='ERROR', text="")
+            gpl = gpd.layers.active if gpd is not None else None
+            if gpl is not None:
+                col2.prop(gpl, "opacity", text="Layer Opacity", slider=True)
 
 class HP_OT_gp_stroke(bpy.types.Operator):
     bl_idname = '3dview.gp_type'

@@ -187,7 +187,7 @@ class HP_OT_boolean_live(bpy.types.Operator):
     displaytype: bpy.props.StringProperty(name="Display Type",default='WIRE')
     showbounds: bpy.props.BoolProperty(name="Display Type",default= False)
     bool_operation: bpy.props.StringProperty(name="Boolean Operation")
-    bool_solver: bpy.props.StringProperty(name="Boolean Solver",default='BMESH')
+    bool_solver: bpy.props.StringProperty(name="Boolean Solver",default='FLOAT')
     def execute(self, context):
         sel = bpy.context.selected_objects
         base = bpy.context.active_object

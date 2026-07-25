@@ -50,7 +50,7 @@ def Keymap_Heavypoly():
 #Window
     km = kc.keymaps.new('Window', space_type='EMPTY', region_type='WINDOW', modal=False)
     Global_Keys()
-    kmi = km.keymap_items.new('object.hide_viewport', 'H', 'PRESS')
+    kmi = km.keymap_items.new('object.hide_view_set', 'H', 'PRESS')
     kmi = km.keymap_items.new('wm.save_homefile', 'U', 'PRESS', ctrl=True)
     kmi = km.keymap_items.new('transform.translate', 'SPACE', 'PRESS')
     #kmi = km.keymap_items.new('object.modal_translate', 'SPACE', 'PRESS')
@@ -108,10 +108,10 @@ def Keymap_Heavypoly():
     print(f"Added keymap item: {kmi.idname} ({kmi.type})")
 
 
-    kmi = km.keymap_items.new('time.cursor_set', k_select, 'PRESS', alt = True)
-    kmi = km.keymap_items.new('time.start_frame_set', 'S', 'PRESS')
-    kmi = km.keymap_items.new('time.end_frame_set', 'E', 'PRESS')
-    kmi = km.keymap_items.new('time.view_all', k_viewfit, 'PRESS', ctrl=True, shift=True)
+    kmi = km.keymap_items.new('anim.change_frame', k_select, 'PRESS', alt = True)
+    kmi = km.keymap_items.new('anim.start_frame_set', 'S', 'PRESS')
+    kmi = km.keymap_items.new('anim.end_frame_set', 'E', 'PRESS')
+    kmi = km.keymap_items.new('action.view_all', k_viewfit, 'PRESS', ctrl=True, shift=True)
 
 # Map Graph Editor
     km = kc.keymaps.new('Graph Editor', space_type='GRAPH_EDITOR', region_type='WINDOW', modal=False)
@@ -146,7 +146,8 @@ def Keymap_Heavypoly():
     kmi = km.keymap_items.new('view3d.move', k_nav, 'PRESS', shift=True)
     kmi = km.keymap_items.new('view3d.zoom', k_nav, 'PRESS', ctrl=True)
     kmi = km.keymap_items.new('view3d.rotate', k_nav, 'PRESS')
-    kmi = km.keymap_items.new('view3d.manipulator', k_manip, 'PRESS')
+    # Removed: 'view3d.manipulator' is a Blender 2.7x operator, absent since 2.80 and not registered by Heavypoly - the binding was dead.
+#    kmi = km.keymap_items.new('view3d.manipulator', k_manip, 'PRESS')
     kmi = km.keymap_items.new("wm.call_menu_pie", k_menu,"PRESS",ctrl=True).properties.name="HP_MT_pie_select"
     kmi = km.keymap_items.new("wm.call_menu_pie", k_menu, 'PRESS',ctrl=True, alt=True).properties.name="HP_MT_pie_rotate90"
     kmi = km.keymap_items.new("wm.call_menu_pie", 'V', 'PRESS').properties.name="HP_MT_pie_view"
@@ -204,11 +205,12 @@ def Keymap_Heavypoly():
     kmi = km.keymap_items.new('mesh.select_next_item', 'Z', 'PRESS', shift=True)
     kmi = km.keymap_items.new('mesh.select_prev_item', 'WHEELOUTMOUSE', 'PRESS', shift=True)
     kmi = km.keymap_items.new('mesh.edgering_select', k_select, 'DOUBLE_CLICK', alt=True).properties.extend = False
-    kmi = km.keymap_items.new('mesh.loop_multi_select', k_select, 'DOUBLE_CLICK', alt=True, shift=True)
+    kmi = km.keymap_items.new('mesh.select_edge_loop_multi', k_select, 'DOUBLE_CLICK', alt=True, shift=True)
     kmi = km.keymap_items.new('mesh.loop_select', k_select, 'PRESS', alt=True, shift=True).properties.extend = True
     kmi = km.keymap_items.new('mesh.loop_select', k_select, 'PRESS', alt=True).properties.extend = False
     kmi = km.keymap_items.new('mesh.normals_make_consistent', 'N', 'PRESS', ctrl=True).properties.inside = False
-    kmi = km.keymap_items.new("wm.call_menu_pie","FOUR","PRESS").properties.name="GPENCIL_PIE_tool_palette"
+    # Removed: the legacy Grease Pencil tool-palette pie is gone with GPv3 (no GPENCIL_PIE_tool_palette in 4.3+), and there is no GPv3 replacement.
+#    kmi = km.keymap_items.new("wm.call_menu_pie","FOUR","PRESS").properties.name="GPENCIL_PIE_tool_palette"
     kmi = km.keymap_items.new("mesh.select_prev_item","TWO","PRESS")
     kmi = km.keymap_items.new("mesh.select_next_item","THREE","PRESS")
     kmi = km.keymap_items.new("mesh.select_less","TWO","PRESS", ctrl=True)
@@ -225,10 +227,10 @@ def Keymap_Heavypoly():
     kmi_props_setattr(kmi.properties, 'type', 'LAST')
     kmi = km.keymap_items.new('mesh.hp_unhide', 'H', 'PRESS', ctrl=True, shift=True)
 #Grease Pencil
-    km = kc.keymaps.new('Grease Pencil', space_type='EMPTY', region_type='WINDOW', modal=False)
+    km = kc.keymaps.new('Grease Pencil Edit Mode', space_type='EMPTY', region_type='WINDOW', modal=False)
     Global_Keys()
-    kmi = km.keymap_items.new('gpencil.select_linked', k_select, 'DOUBLE_CLICK')
-    kmi = km.keymap_items.new('gpencil.select_linked', k_select, 'DOUBLE_CLICK', shift=True)
+    kmi = km.keymap_items.new('grease_pencil.select_linked', k_select, 'DOUBLE_CLICK')
+    kmi = km.keymap_items.new('grease_pencil.select_linked', k_select, 'DOUBLE_CLICK', shift=True)
     # kmi = km.keymap_items.new('gpencil.select_box', k_select,'CLICK_DRAG')
     # kmi_props_setattr(kmi.properties, 'mode', 'SET')
     # kmi_props_setattr(kmi.properties, 'wait_for_input',False)
@@ -285,7 +287,7 @@ def Keymap_Heavypoly():
 
 
 #Function to disable keymap confict
-def disable_default_kmi(km=None, idname=None, retries=1):
+def disable_default_kmi(km=None, idname=None, retries=20):
     wm = bpy.context.window_manager
 
     if not (km and idname) or retries < 1:
@@ -293,33 +295,48 @@ def disable_default_kmi(km=None, idname=None, retries=1):
 
     # the default keyconfig
     kc = wm.keyconfigs['Blender']
-    for kmi in kc.keymaps[km].keymap_items:
-        if kmi.idname == idname:
-            kmi.active = False
-            print("Disabled", kmi.name)
-            return
+    # Tool keymaps ("3D View Tool: ...") are not built yet while startup scripts run,
+    # so look the keymap up without raising and fall through to the retry below.
+    keymap = kc.keymaps.get(km)
+    if keymap is not None:
+        for kmi in keymap.keymap_items:
+            if kmi.idname == idname:
+                kmi.active = False
+                print("Disabled", kmi.name)
+                return
 
     # add some delay
     bpy.app.timers.register(
         lambda: disable_default_kmi(km, idname,retries - 1),
         first_interval=0.1)
     
-def disable_specific_kmi(km=None, idname=None, type=None, value=None, shift=None, ctrl=None, alt=None,  retries=1):
+def disable_specific_kmi(km=None, idname=None, type=None, value=None, shift=None, ctrl=None, alt=None,  retries=20):
     wm = bpy.context.window_manager
     if not (km and idname) or retries < 1:
         return
     # the default keyconfig
     kc = wm.keyconfigs['Blender']
-    for kmi in kc.keymaps[km].keymap_items:
-        if kmi.idname == idname and kmi.type == type and kmi.value == value and kmi.shift == shift and kmi.ctrl == ctrl and kmi.alt == alt:
-            kmi.active = False
-            print("Disabled", kmi.name)
-            return
+    # See disable_default_kmi(): the keymap may not exist yet at startup.
+    keymap = kc.keymaps.get(km)
+    if keymap is not None:
+        for kmi in keymap.keymap_items:
+            if kmi.idname == idname and kmi.type == type and kmi.value == value and kmi.shift == shift and kmi.ctrl == ctrl and kmi.alt == alt:
+                kmi.active = False
+                print("Disabled", kmi.name)
+                return
 
     # add some delay
     bpy.app.timers.register(
         lambda: disable_specific_kmi(km, idname, type, value, shift, ctrl, alt, retries - 1),
         first_interval=0.1)
+
+def disable_kmi(kmi):
+    """get_active_kmi() returns None when the keymap has not been built yet
+    (tool keymaps are created after startup scripts run) or nothing matched.
+    Skip those instead of raising, which would abort the rest of register()."""
+    if kmi is not None:
+        kmi.active = False
+
 
 def get_active_kmi(space: str, **kwargs) -> bpy.types.KeyMapItem:
     kc = bpy.context.window_manager.keyconfigs.active
@@ -357,7 +374,7 @@ def register():
 
     disable_default_kmi('Mesh', 'wm.call_menu')
 
-    disable_specific_kmi('Sculpt', 'paint.brush_select','V','PRESS',False,False,False)
+    disable_specific_kmi('Sculpt', 'brush.asset_activate','V','PRESS',False,False,False)
     
     disable_specific_kmi('3D View Tool: Select Box', 'view3d.select_box','LEFTMOUSE','CLICK_DRAG',False,False,False)
     disable_specific_kmi('3D View Tool: Select Box', 'view3d.select_box','LEFTMOUSE','CLICK_DRAG',True,False,False)
@@ -372,7 +389,7 @@ def register():
                          shift=False,
                          ctrl=False,
                          alt=False)
-    kmi.active = False
+    disable_kmi(kmi)
     kmi = get_active_kmi("Pose",
                          idname="transform.translate",
                          type='LEFTMOUSE',
@@ -380,14 +397,14 @@ def register():
                          shift=False,
                          ctrl=False,
                          alt=False)
-    kmi.active = False
+    disable_kmi(kmi)
     kmi = get_active_kmi("Mesh",
                          idname="wm.call_menu",
                          type='X',
                          shift=False,
                          ctrl=False,
                          alt=False)
-    kmi.active = False
+    disable_kmi(kmi)
     kmi = get_active_kmi("Grease Pencil Edit Mode",
                          idname="wm.call_menu",
                          type='X',
@@ -395,14 +412,14 @@ def register():
                          ctrl=False,
                          alt=False)
     print ("Disable GP Edit X")
-    kmi.active = False
+    disable_kmi(kmi)
     kmi = get_active_kmi("Frames",
                          idname="screen.animation_play",
                          type='SPACE',
                          shift=True,
                          ctrl=True,
                          alt=False)
-    kmi.active = False
+    disable_kmi(kmi)
 
         
 
