@@ -70,7 +70,13 @@ class HP_MT_pie_specials(Menu):
         row = col.row(align=True)
         row.operator("transform.edge_crease", text="SUBD Crease ").value=1
         row.operator("transform.edge_crease", text="SUBD Un Crease").value=-1
-        col.operator("object.scv_ot_draw_operator", text="Keys Viewer")
+        # Screencast Keys is an optional third-party add-on. Only offer the button
+        # when it is actually registered, otherwise Blender draws a dead button and
+        # logs "unknown operator" every time the pie opens.
+        # Note: use dir(), not hasattr() - bpy.ops resolves lazily and hasattr()
+        # returns True for operators that do not exist.
+        if "scv_ot_draw_operator" in dir(bpy.ops.object):
+            col.operator("object.scv_ot_draw_operator", text="Keys Viewer")
         col.operator("transform.vertex_random", text="Randomize")
         
         
