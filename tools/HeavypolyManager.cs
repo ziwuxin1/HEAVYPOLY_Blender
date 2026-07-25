@@ -14,9 +14,11 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.IO;
 using System.IO.Compression;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Windows.Forms;
@@ -29,14 +31,42 @@ namespace Heavypoly
         const string RES_ZIP = "payload.zip";
         const string RES_PS1 = "heavypoly_setup.ps1";
 
+        // Blender-ish dark palette
+        static readonly Color Bg        = Color.FromArgb(43, 43, 43);
+        static readonly Color Panel     = Color.FromArgb(24, 24, 24);
+        static readonly Color Fg        = Color.FromArgb(222, 222, 222);
+        static readonly Color TextMuted = Color.FromArgb(140, 140, 140);
+        static readonly Color Accent    = Color.FromArgb(237, 126, 22);   // Blender orange
+        static readonly Color AccentHot = Color.FromArgb(255, 149, 51);
+        static readonly Color Neutral   = Color.FromArgb(62, 62, 62);
+        static readonly Color NeutralHot= Color.FromArgb(82, 82, 82);
+        static readonly Color OkGreen   = Color.FromArgb(122, 192, 106);
+
         readonly ComboBox _versions = new ComboBox();
         readonly Label _status = new Label();
-        readonly Button _install = new Button();
-        readonly Button _uninstall = new Button();
-        readonly Button _launch = new Button();
+        Button _install;
+        Button _uninstall;
+        Button _launch;
         readonly TextBox _log = new TextBox();
 
         readonly string _configRoot;
+
+        // Win11 dark title bar
+        [DllImport("dwmapi.dll")]
+        static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int value, int size);
+
+        protected override void OnHandleCreated(EventArgs e)
+        {
+            base.OnHandleCreated(e);
+            try
+            {
+                int on = 1;
+                // 20 = DWMWA_USE_IMMERSIVE_DARK_MODE (19 on older Win10 builds)
+                if (DwmSetWindowAttribute(Handle, 20, ref on, sizeof(int)) != 0)
+                    DwmSetWindowAttribute(Handle, 19, ref on, sizeof(int));
+            }
+            catch { /* pre-Win10, ignore */ }
+        }
 
         public MainForm()
         {
@@ -47,59 +77,142 @@ namespace Heavypoly
             LoadVersions();
         }
 
+        // ---------------------------------------------------------------- ui
+
+        static Icon MakeIcon()
+        {
+            // Drawn at run time so no .ico binary has to be shipped.
+            using (var bmp = new Bitmap(32, 32))
+            using (var g = Graphics.FromImage(bmp))
+            {
+                g.SmoothingMode = SmoothingMode.AntiAlias;
+                using (var b = new SolidBrush(Accent))
+                    g.FillEllipse(b, 1, 1, 30, 30);
+                using (var f = new Font("Segoe UI", 15F, FontStyle.Bold))
+                using (var b = new SolidBrush(Color.White))
+                {
+                    var sf = new StringFormat
+                    { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
+                    g.DrawString("H", f, b, new RectangleF(0, 0, 32, 33), sf);
+                }
+                return Icon.FromHandle(bmp.GetHicon());
+            }
+        }
+
+        static Button MakeButton(string text, Point at, Size size, Color back, Color hot)
+        {
+            var b = new Button
+            {
+                Text = text,
+                Location = at,
+                Size = size,
+                FlatStyle = FlatStyle.Flat,
+                BackColor = back,
+                ForeColor = Color.White,
+                Cursor = Cursors.Hand,
+                Font = new Font("Segoe UI Semibold", 9.75F),
+                TabStop = false
+            };
+            b.FlatAppearance.BorderSize = 0;
+            b.FlatAppearance.MouseOverBackColor = hot;
+            b.FlatAppearance.MouseDownBackColor = back;
+            return b;
+        }
+
         void BuildUi()
         {
             Text = "HEAVYPOLY for Blender";
-            ClientSize = new Size(560, 420);
+            ClientSize = new Size(600, 440);
             FormBorderStyle = FormBorderStyle.FixedSingle;
             MaximizeBox = false;
             StartPosition = FormStartPosition.CenterScreen;
+            BackColor = Bg;
+            ForeColor = Fg;
             Font = new Font("Segoe UI", 9F);
+            try { Icon = MakeIcon(); } catch { }
 
             var title = new Label
             {
-                Text = "HEAVYPOLY for Blender",
-                Font = new Font("Segoe UI", 15F, FontStyle.Bold),
-                Location = new Point(18, 14),
+                Text = "HEAVYPOLY",
+                Font = new Font("Segoe UI", 20F, FontStyle.Bold),
+                ForeColor = Fg,
+                Location = new Point(26, 20),
                 AutoSize = true
             };
-            var lblVer = new Label { Text = "Blender version:", Location = new Point(20, 62), AutoSize = true };
+            var sub = new Label
+            {
+                Text = "pie-menu workflow for Blender",
+                Font = new Font("Segoe UI", 9F),
+                ForeColor = TextMuted,
+                Location = new Point(29, 60),
+                AutoSize = true
+            };
+            var rule = new Panel
+            {
+                Location = new Point(26, 88),
+                Size = new Size(548, 1),
+                BackColor = Color.FromArgb(64, 64, 64)
+            };
 
-            _versions.Location = new Point(126, 58);
-            _versions.Width = 110;
+            var lblVer = new Label
+            {
+                Text = "Blender",
+                ForeColor = TextMuted,
+                Location = new Point(26, 108),
+                AutoSize = true
+            };
+            _versions.Location = new Point(86, 104);
+            _versions.Width = 96;
             _versions.DropDownStyle = ComboBoxStyle.DropDownList;
+            _versions.FlatStyle = FlatStyle.Flat;
+            _versions.BackColor = Neutral;
+            _versions.ForeColor = Fg;
+            _versions.Font = new Font("Segoe UI", 9F);
             _versions.SelectedIndexChanged += delegate { RefreshStatus(); };
 
-            _status.Location = new Point(256, 62);
+            _status.Location = new Point(200, 108);
             _status.AutoSize = true;
-            _status.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            _status.Font = new Font("Segoe UI Semibold", 9F);
 
-            _install.Text = "Install";
-            _install.Location = new Point(20, 98);
-            _install.Size = new Size(168, 44);
-            _install.Click += delegate { RunAction("install"); };
-
-            _uninstall.Text = "Uninstall";
-            _uninstall.Location = new Point(196, 98);
-            _uninstall.Size = new Size(168, 44);
+            int by = 146, bw = 176, bh = 46;
+            _install   = MakeButton("Install",        new Point(26, by),            new Size(bw, bh), Accent,  AccentHot);
+            _uninstall = MakeButton("Uninstall",      new Point(26 + bw + 10, by),  new Size(bw, bh), Neutral, NeutralHot);
+            _launch    = MakeButton("Launch Blender", new Point(26 + 2*(bw+10), by),new Size(bw, bh), Neutral, NeutralHot);
+            _install.Click   += delegate { RunAction("install"); };
             _uninstall.Click += delegate { RunAction("uninstall"); };
+            _launch.Click    += delegate { LaunchBlender(); };
 
-            _launch.Text = "Launch Blender";
-            _launch.Location = new Point(372, 98);
-            _launch.Size = new Size(168, 44);
-            _launch.Click += delegate { LaunchBlender(); };
-
-            _log.Location = new Point(20, 158);
-            _log.Size = new Size(520, 240);
+            _log.Location = new Point(26, 212);
+            _log.Size = new Size(548, 196);
             _log.Multiline = true;
             _log.ReadOnly = true;
             _log.ScrollBars = ScrollBars.Vertical;
-            _log.BackColor = Color.FromArgb(30, 30, 30);
-            _log.ForeColor = Color.Gainsboro;
+            _log.BorderStyle = BorderStyle.None;
+            _log.BackColor = Panel;
+            _log.ForeColor = Color.FromArgb(190, 190, 190);
             _log.Font = new Font("Consolas", 9F);
+            _log.TabStop = false;
+
+            // give the log a border without a 3D frame
+            var logFrame = new Panel
+            {
+                Location = new Point(24, 210),
+                Size = new Size(552, 200),
+                BackColor = Color.FromArgb(64, 64, 64)
+            };
+            var logInner = new Panel
+            {
+                Location = new Point(1, 1),
+                Size = new Size(550, 198),
+                BackColor = Panel
+            };
+            logFrame.Controls.Add(logInner);
+            _log.Location = new Point(8, 6);
+            _log.Size = new Size(536, 188);
+            logInner.Controls.Add(_log);
 
             Controls.AddRange(new Control[]
-            { title, lblVer, _versions, _status, _install, _uninstall, _launch, _log });
+            { title, sub, rule, lblVer, _versions, _status, _install, _uninstall, _launch, logFrame });
         }
 
         // ---------------------------------------------------------------- helpers
@@ -132,17 +245,21 @@ namespace Heavypoly
 
             if (found.Count == 0)
             {
-                _status.Text = "no Blender config found";
-                _status.ForeColor = Color.Firebrick;
+                _status.Text = "no Blender found";
+                _status.ForeColor = Color.FromArgb(215, 100, 90);
                 _install.Enabled = false;
                 _uninstall.Enabled = false;
                 Log("No Blender user-config folder found under:");
                 Log("  " + _configRoot);
+                Log("");
                 Log("Start Blender once so it creates one, then reopen this tool.");
                 return;
             }
             _versions.SelectedIndex = found.Count - 1;   // newest
             RefreshStatus();
+            Log("Ready.  Blender " + SelectedVersion + " selected.");
+            Log("Install copies the HEAVYPOLY config and records what it wrote,");
+            Log("so Uninstall can remove exactly those files and nothing else.");
         }
 
         void RefreshStatus()
@@ -150,10 +267,11 @@ namespace Heavypoly
             var v = SelectedVersion;
             if (v == null) return;
             bool installed = File.Exists(Path.Combine(Path.Combine(_configRoot, v), MANIFEST));
-            _status.Text = installed ? "INSTALLED" : "not installed";
-            _status.ForeColor = installed ? Color.SeaGreen : Color.Gray;
+            _status.Text = installed ? "●  INSTALLED" : "○  not installed";
+            _status.ForeColor = installed ? OkGreen : TextMuted;
             _install.Enabled = true;
             _uninstall.Enabled = installed;
+            _uninstall.ForeColor = installed ? Color.White : TextMuted;
         }
 
         void SetBusy(bool busy)
@@ -168,8 +286,6 @@ namespace Heavypoly
 
         // ------------------------------------------------- embedded payload
 
-        // Unpack the embedded engine + payload into a fresh temp folder.
-        // Returns the temp root; caller must delete it.
         static string Unpack()
         {
             var asm = Assembly.GetExecutingAssembly();
@@ -233,10 +349,7 @@ namespace Heavypoly
                 catch (Exception ex) { Log("ERROR: " + ex.Message); }
                 finally
                 {
-                    if (tmp != null)
-                    {
-                        try { Directory.Delete(tmp, true); } catch { }
-                    }
+                    if (tmp != null) { try { Directory.Delete(tmp, true); } catch { } }
                 }
 
                 int finished = code;
