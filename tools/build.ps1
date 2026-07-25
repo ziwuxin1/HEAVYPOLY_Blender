@@ -27,6 +27,71 @@ $stamp    = Get-Date -Format 'yyyyMMddHHmmss'
 $Zip      = Join-Path $env:TEMP ("heavypoly_payload_$stamp.zip")
 $Staging  = Join-Path $env:TEMP ("heavypoly_stage_$stamp")
 
+$Ico = Join-Path $env:TEMP ("heavypoly_icon_$stamp.ico")
+
+# Draw the application icon and write a multi-size .ico, so no binary icon file
+# has to live in the repository. Explorer needs a real Win32 icon resource
+# (/win32icon); the Form.Icon set at run time only covers the title bar.
+function New-AppIcon {
+    param([string]$Path)
+
+    Add-Type -AssemblyName System.Drawing
+    $sizes = @(256, 48, 32, 16)
+    $pngs = @()
+
+    foreach ($s in $sizes) {
+        $bmp = New-Object System.Drawing.Bitmap $s, $s
+        $g = [System.Drawing.Graphics]::FromImage($bmp)
+        $g.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
+        $g.TextRenderingHint = [System.Drawing.Text.TextRenderingHint]::AntiAliasGridFit
+
+        $orange = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(237, 126, 22))
+        $g.FillEllipse($orange, 0, 0, ($s - 1), ($s - 1))
+
+        $fontPx = [int]($s * 0.60)
+        if ($fontPx -lt 6) { $fontPx = 6 }
+        $font = New-Object System.Drawing.Font 'Segoe UI', $fontPx, ([System.Drawing.FontStyle]::Bold), ([System.Drawing.GraphicsUnit]::Pixel)
+        $sf = New-Object System.Drawing.StringFormat
+        $sf.Alignment = [System.Drawing.StringAlignment]::Center
+        $sf.LineAlignment = [System.Drawing.StringAlignment]::Center
+        $white = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::White)
+        $rect = New-Object System.Drawing.RectangleF 0, 0, $s, $s
+        $g.DrawString('H', $font, $white, $rect, $sf)
+
+        $g.Dispose(); $orange.Dispose(); $white.Dispose(); $font.Dispose()
+
+        $ms = New-Object System.IO.MemoryStream
+        $bmp.Save($ms, [System.Drawing.Imaging.ImageFormat]::Png)
+        $pngs += , ($ms.ToArray())
+        $ms.Dispose(); $bmp.Dispose()
+    }
+
+    # ICONDIR + ICONDIRENTRY[] + PNG payloads (PNG-in-ICO, supported since Vista)
+    $fs = [System.IO.File]::Create($Path)
+    $bw = New-Object System.IO.BinaryWriter $fs
+    $bw.Write([UInt16]0)                # reserved
+    $bw.Write([UInt16]1)                # type = icon
+    $bw.Write([UInt16]$sizes.Count)
+
+    $offset = 6 + (16 * $sizes.Count)
+    for ($i = 0; $i -lt $sizes.Count; $i++) {
+        $s = $sizes[$i]
+        $dim = 0
+        if ($s -lt 256) { $dim = $s }   # 0 means 256
+        $bw.Write([byte]$dim)           # width
+        $bw.Write([byte]$dim)           # height
+        $bw.Write([byte]0)              # palette size
+        $bw.Write([byte]0)              # reserved
+        $bw.Write([UInt16]1)            # colour planes
+        $bw.Write([UInt16]32)           # bits per pixel
+        $bw.Write([UInt32]$pngs[$i].Length)
+        $bw.Write([UInt32]$offset)
+        $offset += $pngs[$i].Length
+    }
+    foreach ($d in $pngs) { $bw.Write($d) }
+    $bw.Flush(); $bw.Close(); $fs.Close()
+}
+
 $csc = Get-ChildItem 'C:\Windows\Microsoft.NET\Framework64' -Directory -ErrorAction SilentlyContinue |
         Sort-Object Name -Descending |
         ForEach-Object { Join-Path $_.FullName 'csc.exe' } |
@@ -58,9 +123,13 @@ try {
     $ps1 = Join-Path $PSScriptRoot 'heavypoly_setup.ps1'
     $cs  = Join-Path $PSScriptRoot 'HeavypolyManager.cs'
 
+    New-AppIcon -Path $Ico
+    Write-Host ("icon: {0} KB" -f [math]::Round((Get-Item $Ico).Length / 1KB, 1))
+
     $cscArgs = @(
         '/nologo', '/target:winexe', '/optimize+',
         ('/out:' + $OutExe),
+        ('/win32icon:' + $Ico),
         '/reference:System.dll,System.Drawing.dll,System.Windows.Forms.dll,System.IO.Compression.dll,System.IO.Compression.FileSystem.dll',
         ('/resource:' + $Zip + ',payload.zip'),
         ('/resource:' + $ps1 + ',heavypoly_setup.ps1'),
@@ -74,5 +143,6 @@ try {
 }
 finally {
     if (Test-Path $Zip)     { Remove-Item -LiteralPath $Zip -Force }
+    if (Test-Path $Ico)     { Remove-Item -LiteralPath $Ico -Force }
     if (Test-Path $Staging) { Remove-Item -LiteralPath $Staging -Recurse -Force }
 }
